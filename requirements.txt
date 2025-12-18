@@ -1,7 +1,7 @@
 # PYTHON 3.13 COMPATIBLE VERSIONS - FINAL BUILD
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
+sqlalchemy==2.0.31
 pymysql==1.1.0
 cryptography==41.0.7
 pydantic==2.9.2
