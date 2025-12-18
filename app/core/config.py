@@ -28,27 +28,50 @@ class Settings(BaseSettings):
     @property
     def database_host(self) -> str:
         """Get database host - Railway MYSQLHOST takes priority"""
-        return self.MYSQLHOST or self.DB_HOST or "localhost"
+        # Try Railway variables first (using os.getenv for reliability)
+        host = os.getenv("MYSQLHOST") or self.MYSQLHOST or os.getenv("DB_HOST") or self.DB_HOST
+        return host or "localhost"
     
     @property
     def database_port(self) -> int:
         """Get database port - Railway MYSQL_PORT takes priority"""
-        return self.MYSQL_PORT or self.DB_PORT or 3306
+        # Try Railway variables first (using os.getenv for reliability)
+        port_str = os.getenv("MYSQLPORT") or os.getenv("MYSQL_PORT")
+        if port_str:
+            try:
+                return int(port_str)
+            except ValueError:
+                pass
+        if self.MYSQL_PORT:
+            return self.MYSQL_PORT
+        port_str = os.getenv("DB_PORT")
+        if port_str:
+            try:
+                return int(port_str)
+            except ValueError:
+                pass
+        return self.DB_PORT or 3306
     
     @property
     def database_user(self) -> str:
         """Get database user - Railway MYSQLUSER takes priority"""
-        return self.MYSQLUSER or self.DB_USER or "root"
+        # Try Railway variables first (using os.getenv for reliability)
+        user = os.getenv("MYSQLUSER") or self.MYSQLUSER or os.getenv("DB_USER") or self.DB_USER
+        return user or "root"
     
     @property
     def database_password(self) -> str:
         """Get database password - Railway MYSQL_ROOT_PASSWORD takes priority"""
-        return self.MYSQL_ROOT_PASSWORD or self.DB_PASSWORD or ""
+        # Try Railway variables first (using os.getenv for reliability)
+        password = os.getenv("MYSQL_ROOT_PASSWORD") or self.MYSQL_ROOT_PASSWORD or os.getenv("DB_PASSWORD") or self.DB_PASSWORD
+        return password or ""
     
     @property
     def database_name(self) -> str:
         """Get database name - Railway MYSQL_DATABASE takes priority"""
-        return self.MYSQL_DATABASE or self.DB_NAME or "shwarma"
+        # Try Railway variables first (using os.getenv for reliability)
+        database = os.getenv("MYSQL_DATABASE") or self.MYSQL_DATABASE or os.getenv("DB_NAME") or self.DB_NAME
+        return database or "shwarma"
     
     @property
     def DATABASE_URL(self) -> str:
@@ -58,6 +81,13 @@ class Settings(BaseSettings):
         user = self.database_user
         password = self.database_password
         database = self.database_name
+        
+        # Debug logging (will show in Railway logs)
+        import sys
+        sys.stderr.write(f"[DB Config] Host: {host}, Port: {port}, User: {user}, Database: {database}\n")
+        sys.stderr.write(f"[DB Config] MYSQLHOST env: {os.getenv('MYSQLHOST')}\n")
+        sys.stderr.write(f"[DB Config] MYSQL_DATABASE env: {os.getenv('MYSQL_DATABASE')}\n")
+        sys.stderr.flush()
         
         password_part = f":{password}" if password else ""
         return f"mysql+pymysql://{user}{password_part}@{host}:{port}/{database}?charset=utf8mb4"
