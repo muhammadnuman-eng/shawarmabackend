@@ -24,6 +24,47 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # SMS Service Configuration (Twilio)
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+
+    # SMS Settings
+    SMS_ENABLED: bool = False  # Set to True in production
+    SMS_PROVIDER: str = "twilio"  # 'twilio', 'aws_sns', etc.
+
+    # Email Service Configuration
+    EMAIL_ENABLED: bool = False  # Set to True in production
+    EMAIL_PROVIDER: str = "smtp"  # 'smtp', 'sendgrid', etc.
+
+    # SMTP Configuration (support both naming conventions)
+    SMTP_SERVER: Optional[str] = None
+    SMTP_PORT: Optional[int] = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    FROM_EMAIL: Optional[str] = None
+
+    # Alternative email config variables (user provided)
+    EMAIL_SERVICE: Optional[str] = None  # 'gmail', etc.
+    EMAIL_HOST: Optional[str] = None
+    EMAIL_PORT: Optional[int] = None
+    EMAIL_SECURE: Optional[str] = None  # 'true'/'false'
+    EMAIL_USER: Optional[str] = None
+    EMAIL_PASS: Optional[str] = None
+
+    # SendGrid Configuration (for EMAIL_PROVIDER="sendgrid")
+    SENDGRID_API_KEY: Optional[str] = None
+
+    # OAuth Configuration
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+
+    FACEBOOK_APP_ID: Optional[str] = None
+    FACEBOOK_APP_SECRET: Optional[str] = None
+
+    # OAuth Settings
+    OAUTH_ENABLED: bool = False  # Set to True in production
     
     @property
     def database_host(self) -> str:
@@ -81,13 +122,6 @@ class Settings(BaseSettings):
         user = self.database_user
         password = self.database_password
         database = self.database_name
-        
-        # Debug logging (will show in Railway logs)
-        import sys
-        sys.stderr.write(f"[DB Config] Host: {host}, Port: {port}, User: {user}, Database: {database}\n")
-        sys.stderr.write(f"[DB Config] MYSQLHOST env: {os.getenv('MYSQLHOST')}\n")
-        sys.stderr.write(f"[DB Config] MYSQL_DATABASE env: {os.getenv('MYSQL_DATABASE')}\n")
-        sys.stderr.flush()
         
         password_part = f":{password}" if password else ""
         return f"mysql+pymysql://{user}{password_part}@{host}:{port}/{database}?charset=utf8mb4"

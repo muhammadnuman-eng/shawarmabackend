@@ -7,20 +7,13 @@ from app.api.v1 import (
     auth, user, products, search, cart, addresses, mobile_orders, payment,
     favorites, mobile_reviews, notifications, loyalty, location, chat, admin
 )
-import sys
 
 # Create database tables (with error handling)
 try:
-    import sys
-    sys.stderr.write(f"[Startup] Database URL: {settings.DATABASE_URL.replace(settings.database_password, '***') if settings.database_password else settings.DATABASE_URL}\n")
-    sys.stderr.flush()
     Base.metadata.create_all(bind=engine)
-    sys.stderr.write("[Startup] Database tables created successfully\n")
-    sys.stderr.flush()
 except Exception as e:
-    sys.stderr.write(f"[Startup] Warning: Could not create database tables: {e}\n")
-    sys.stderr.write(f"[Startup] Database connection will be attempted on first request\n")
-    sys.stderr.flush()
+    # Database connection will be attempted on first request
+    pass
 
 app = FastAPI(
     title="Shawarma Stop API",
