@@ -15,7 +15,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     # FIX: Ensure password is truncated to exactly 72 BYTES for bcrypt.
-    truncated_password = password.encode('utf-8')[:72]
+    truncated_password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
     return pwd_context.hash(truncated_password)
     
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
