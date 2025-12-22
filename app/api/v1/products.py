@@ -118,6 +118,52 @@ async def get_products(
         }
     }
 
+# Specific routes must come before parameterized routes to avoid conflicts
+@router.get("/products/recommended")
+async def get_recommended_products(
+    category: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Get recommended products for user"""
+    query = db.query(MenuItem).filter(MenuItem.is_available == True)
+
+    if category:
+        cat = db.query(Category).filter(
+            or_(Category.id == category, Category.name.ilike(f"%{category}%"))
+        ).first()
+        if cat:
+            query = query.filter(MenuItem.category_id == cat.id)
+
+    # Get user's favorite categories or order history
+    # For now, just return top rated products
+    products = query.order_by(
+        MenuItem.rating.desc(),
+        MenuItem.order_count.desc()
+    ).limit(limit).all()
+
+    products_list = []
+    for product in products:
+        reviews = db.query(Review).filter(Review.product_id == product.id).all()
+        rating = 0.0
+        if reviews:
+            rating = sum(r.rating for r in reviews) / len(reviews)
+
+        products_list.append({
+            "id": product.id,
+            "name": product.name,
+            "price": product.price,
+            "image": product.image,
+            "distance": product.distance,
+            "rating": round(rating, 1),
+            "reviewsCount": len(reviews),
+            "deliveryTime": product.delivery_time,
+            "category": product.category.name if product.category else ""
+        })
+
+    return {"products": products_list}
+
 @router.get("/products/{product_id}")
 async def get_product_details(
     product_id: str,
@@ -126,7 +172,7 @@ async def get_product_details(
 ):
     """Get product details"""
     product = db.query(MenuItem).filter(MenuItem.id == product_id).first()
-    
+
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -210,51 +256,6 @@ async def get_high_demand_products(
             "rating": round(rating, 1),
             "reviewsCount": len(reviews),
             "distance": product.distance
-        })
-    
-    return {"products": products_list}
-
-@router.get("/products/recommended")
-async def get_recommended_products(
-    category: Optional[str] = Query(None),
-    limit: int = Query(10, ge=1, le=50),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get recommended products for user"""
-    query = db.query(MenuItem).filter(MenuItem.is_available == True)
-    
-    if category:
-        cat = db.query(Category).filter(
-            or_(Category.id == category, Category.name.ilike(f"%{category}%"))
-        ).first()
-        if cat:
-            query = query.filter(MenuItem.category_id == cat.id)
-    
-    # Get user's favorite categories or order history
-    # For now, just return top rated products
-    products = query.order_by(
-        MenuItem.rating.desc(),
-        MenuItem.order_count.desc()
-    ).limit(limit).all()
-    
-    products_list = []
-    for product in products:
-        reviews = db.query(Review).filter(Review.product_id == product.id).all()
-        rating = 0.0
-        if reviews:
-            rating = sum(r.rating for r in reviews) / len(reviews)
-        
-        products_list.append({
-            "id": product.id,
-            "name": product.name,
-            "price": product.price,
-            "image": product.image,
-            "distance": product.distance,
-            "rating": round(rating, 1),
-            "reviewsCount": len(reviews),
-            "deliveryTime": product.delivery_time,
-            "category": product.category.name if product.category else ""
         })
     
     return {"products": products_list}

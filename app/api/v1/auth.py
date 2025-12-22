@@ -100,8 +100,8 @@ def create_user_response(user: User) -> dict:
         "isOnline": user.is_online,
         "lastSeen": user.last_seen.isoformat() if user.last_seen else None,
         "isAdmin": user.is_admin,
-        "provider": user.provider,
-        "providerId": user.provider_id
+        # "provider": user.provider,  # TEMPORARILY COMMENTED OUT
+        # "providerId": user.provider_id  # TEMPORARILY COMMENTED OUT
     }
 
 # Authentication Endpoints
@@ -486,12 +486,10 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             detail="Invalid Google token"
         )
 
-    # Check if user exists by provider ID or email
+    # Check if user exists by email (provider_id check commented out)
     user = db.query(User).filter(
-        or_(
-            User.email == user_info['email'],
-            User.provider_id == user_info['sub']
-        )
+        User.email == user_info['email']
+        # or_(User.provider_id == user_info['sub'])  # TEMPORARILY COMMENTED OUT
     ).first()
 
     is_new_user = False
@@ -503,8 +501,8 @@ async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db
             name=user_info['name'],
             email=user_info['email'],
             avatar=user_info['picture'],
-            provider='google',
-            provider_id=user_info['sub'],
+            # provider='google',  # TEMPORARILY COMMENTED OUT
+            # provider_id=user_info['sub'],  # TEMPORARILY COMMENTED OUT
             is_online=True,
             last_seen=datetime.utcnow()
         )
@@ -553,12 +551,10 @@ async def facebook_login(request: FacebookLoginRequest, db: Session = Depends(ge
             detail="Invalid Facebook token"
         )
 
-    # Check if user exists by provider ID or email
+    # Check if user exists by email (provider_id check commented out)
     user = db.query(User).filter(
-        or_(
-            User.email == user_info['email'] if user_info['email'] else None,
-            User.provider_id == user_info['sub']
-        )
+        User.email == user_info['email'] if user_info['email'] else None
+        # or_(User.provider_id == user_info['sub'])  # TEMPORARILY COMMENTED OUT
     ).first()
 
     is_new_user = False
@@ -570,8 +566,8 @@ async def facebook_login(request: FacebookLoginRequest, db: Session = Depends(ge
             name=user_info['name'],
             email=user_info['email'],
             avatar=user_info['picture'],
-            provider='facebook',
-            provider_id=user_info['sub'],
+            # provider='facebook',  # TEMPORARILY COMMENTED OUT
+            # provider_id=user_info['sub'],  # TEMPORARILY COMMENTED OUT
             is_online=True,
             last_seen=datetime.utcnow()
         )
@@ -592,8 +588,8 @@ async def facebook_login(request: FacebookLoginRequest, db: Session = Depends(ge
         # Update existing user info
         user.name = user_info['name'] or user.name
         user.avatar = user_info['picture'] or user.avatar
-        user.provider = 'facebook'
-        user.provider_id = user_info['sub']
+        # user.provider = 'facebook'  # TEMPORARILY COMMENTED OUT
+        # user.provider_id = user_info['sub']  # TEMPORARILY COMMENTED OUT
         user.is_online = True
         user.last_seen = datetime.utcnow()
 

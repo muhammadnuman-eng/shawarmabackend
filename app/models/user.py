@@ -13,8 +13,8 @@ class User(Base):
     phone_number = Column(String(20), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=True)  # For email/password auth
     avatar = Column(String(500), nullable=True)
-    provider = Column(String(50), nullable=True)  # 'google', 'facebook', etc.
-    provider_id = Column(String(255), nullable=True)  # OAuth provider user ID
+    # provider = Column(String(50), nullable=True)  # 'google', 'facebook', etc. - TEMPORARILY COMMENTED OUT
+    # provider_id = Column(String(255), nullable=True)  # OAuth provider user ID - TEMPORARILY COMMENTED OUT
     is_online = Column(Boolean, default=False)
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     is_admin = Column(Boolean, default=False)
