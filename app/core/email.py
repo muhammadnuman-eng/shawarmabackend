@@ -236,6 +236,41 @@ class EmailService:
 
         return await self.send_email(to_email, subject, html_content, text_content)
 
+    async def send_otp_email(self, to_email: str, otp_code: str) -> bool:
+        """Send OTP email for verification"""
+        subject = "Your Shawarma Stop Verification Code"
+
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Your Verification Code</h2>
+            <p>Welcome to Shawarma Stop! Your verification code is:</p>
+            <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+                {otp_code}
+            </div>
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this code, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>Shawarma Stop Team</p>
+        </body>
+        </html>
+        """
+
+        text_content = f"""
+        Your Verification Code
+
+        Welcome to Shawarma Stop! Your verification code is: {otp_code}
+
+        This code will expire in 10 minutes.
+
+        If you didn't request this code, please ignore this email.
+
+        Best regards,
+        Shawarma Stop Team
+        """
+
+        return await self.send_email(to_email, subject, html_content, text_content)
+
     async def send_welcome_email(self, to_email: str, user_name: str) -> bool:
         """Send welcome email to new users"""
         subject = "Welcome to Shawarma Stop!"

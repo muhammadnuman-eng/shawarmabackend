@@ -33,6 +33,7 @@ class OrderCreate(BaseModel):
     image_url: Optional[str] = None
     payment_method: Optional[str] = None
     branch: Optional[str] = None
+    address_id: Optional[str] = None
 
 class OrderUpdate(BaseModel):
     status: Optional[OrderStatus] = None
@@ -42,6 +43,7 @@ class OrderUpdate(BaseModel):
     image_url: Optional[str] = None
     payment_method: Optional[str] = None
     branch: Optional[str] = None
+    address_id: Optional[str] = None
 
 class OrderResponse(BaseModel):
     id: str

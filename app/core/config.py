@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     # MySQL Database Configuration - Support both Railway and custom variables
     # Railway provides: MYSQLHOST, MYSQLPORT, MYSQLUSER, MYSQL_ROOT_PASSWORD, MYSQL_DATABASE
     # Custom variables: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+    # Direct DATABASE_URL for Railway or other complete connection strings
+    DATABASE_URL: Optional[str] = None
+
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = None
     DB_USER: Optional[str] = None
@@ -23,7 +26,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-this-secret-key-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://10.147.118.151:8081,http://10.147.118.151:3000,http://10.147.118.151"
 
     # SMS Service Configuration (Twilio)
     TWILIO_ACCOUNT_SID: Optional[str] = None
@@ -31,7 +34,7 @@ class Settings(BaseSettings):
     TWILIO_PHONE_NUMBER: Optional[str] = None
 
     # SMS Settings
-    SMS_ENABLED: bool = False  # Set to True in production
+    SMS_ENABLED: bool = True  # Set to True in production
     SMS_PROVIDER: str = "twilio"  # 'twilio', 'aws_sns', etc.
 
     # Email Service Configuration
@@ -60,11 +63,23 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
+    # Google Maps API Configuration
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
+
+    # Google AI API Configuration
+    GEMINI_API_KEY: Optional[str] = None
+    STT_API_KEY: Optional[str] = None
+
     FACEBOOK_APP_ID: Optional[str] = None
     FACEBOOK_APP_SECRET: Optional[str] = None
 
     # OAuth Settings
     OAUTH_ENABLED: bool = False  # Set to True in production
+
+    # Location Service Settings
+    LOCATION_CACHE_ENABLED: bool = True  # Enable caching for location requests
+    LOCATION_CACHE_TTL: int = 3600  # Cache TTL in seconds (1 hour)
+    LOCATION_RATE_LIMIT: int = 100  # Requests per minute per IP
     
     @property
     def database_host(self) -> str:
@@ -115,14 +130,41 @@ class Settings(BaseSettings):
         return database or "shwarma"
     
     @property
-    def DATABASE_URL(self) -> str:
-        """Build MySQL connection URL"""
+    def database_url(self) -> str:
+        """Build database connection URL - supports PostgreSQL, MySQL, or SQLite"""
+        # If DATABASE_URL is provided directly, use it (supports PostgreSQL URLs)
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        # For local development without explicit DATABASE_URL, use SQLite
+        # This prevents the need for database setup during development
+        import os
+        if os.getenv('ENVIRONMENT') != 'production' and not any([
+            os.getenv('MYSQLHOST'), os.getenv('DB_HOST'),
+            os.getenv('PGHOST'), os.getenv('POSTGRES_HOST'),
+            self.MYSQLHOST, self.DB_HOST
+        ]):
+            return "sqlite:///./shawarma_local.db"
+
+        # Check if PostgreSQL environment variables are set
+        pg_host = os.getenv('PGHOST') or os.getenv('POSTGRES_HOST')
+        if pg_host:
+            # Build PostgreSQL connection
+            pg_port = os.getenv('PGPORT') or os.getenv('POSTGRES_PORT') or '5432'
+            pg_user = os.getenv('PGUSER') or os.getenv('POSTGRES_USER') or 'postgres'
+            pg_password = os.getenv('PGPASSWORD') or os.getenv('POSTGRES_PASSWORD') or ''
+            pg_database = os.getenv('PGDATABASE') or os.getenv('POSTGRES_DB') or 'shawarmabackend'
+
+            password_part = f":{pg_password}" if pg_password else ""
+            return f"postgresql+psycopg2://{pg_user}{password_part}@{pg_host}:{pg_port}/{pg_database}"
+
+        # Otherwise, build MySQL connection from components (for backward compatibility)
         host = self.database_host
         port = self.database_port
         user = self.database_user
         password = self.database_password
         database = self.database_name
-        
+
         password_part = f":{password}" if password else ""
         return f"mysql+pymysql://{user}{password_part}@{host}:{port}/{database}?charset=utf8mb4"
     

@@ -22,7 +22,7 @@ class Category(Base):
     menu_items = relationship("MenuItem", back_populates="category")
 
 class MenuItem(Base):
-    __tablename__ = "menu_items"
+    __tablename__ = "products"
     
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=False, index=True)
@@ -68,7 +68,7 @@ class MenuSectionItem(Base):
     
     id = Column(String(36), primary_key=True, index=True)
     section_id = Column(String(36), ForeignKey("menu_sections.id"), nullable=False)
-    menu_item_id = Column(String(36), ForeignKey("menu_items.id"), nullable=False)
+    menu_item_id = Column(String(36), ForeignKey("products.id"), nullable=False)
     display_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

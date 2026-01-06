@@ -9,6 +9,8 @@ class User(Base):
     
     id = Column(String(36), primary_key=True, index=True)
     name = Column(String(255), nullable=True)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=True)
     phone_number = Column(String(20), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=True)  # For email/password auth
@@ -35,9 +37,10 @@ class User(Base):
 
 class OTP(Base):
     __tablename__ = "otps"
-    
+
     id = Column(String(36), primary_key=True, index=True)
-    phone_number = Column(String(20), nullable=False, index=True)
+    phone_number = Column(String(20), nullable=True, index=True)  # Optional for email OTP
+    email = Column(String(255), nullable=True, index=True)  # Optional for email OTP
     otp_code = Column(String(6), nullable=False)
     purpose = Column(String(50), nullable=False)  # 'login', 'register', 'reset_password'
     is_verified = Column(Boolean, default=False)
@@ -67,23 +70,23 @@ class CartItem(Base):
     
     id = Column(String(36), primary_key=True, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    product_id = Column(String(36), ForeignKey("menu_items.id"), nullable=False)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, default=1)
     customizations = Column(Text)  # JSON string for customizations
     add_ons = Column(Text)  # JSON string for add-ons
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="cart_items")
     product = relationship("MenuItem", foreign_keys=[product_id])
 
 class Favorite(Base):
     __tablename__ = "favorites"
-    
+
     id = Column(String(36), primary_key=True, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    product_id = Column(String(36), ForeignKey("menu_items.id"), nullable=False)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

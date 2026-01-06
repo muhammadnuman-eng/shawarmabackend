@@ -31,9 +31,24 @@ async def get_addresses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all user addresses"""
-    addresses = db.query(Address).filter(Address.user_id == current_user.id).all()
-    
+    """Get all user addresses + pickup addresses"""
+    # Get user's delivery addresses
+    user_addresses = db.query(Address).filter(
+        Address.user_id == current_user.id,
+        Address.type != "pickup"
+    ).all()
+
+    # Get system pickup addresses
+    system_user = db.query(User).filter(User.email == "system@shawarma.local").first()
+    pickup_addresses = []
+    if system_user:
+        pickup_addresses = db.query(Address).filter(
+            Address.user_id == system_user.id,
+            Address.type == "pickup"
+        ).all()
+
+    all_addresses = user_addresses + pickup_addresses
+
     return {
         "addresses": [
             {
@@ -45,7 +60,7 @@ async def get_addresses(
                 "isDefault": addr.is_default,
                 "type": addr.type
             }
-            for addr in addresses
+            for addr in all_addresses
         ]
     }
 

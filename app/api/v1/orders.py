@@ -49,7 +49,8 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
         location=order_data.location,
         image_url=order_data.image_url,
         payment_method=order_data.payment_method,
-        branch=order_data.branch
+        branch=order_data.branch,
+        address_id=getattr(order_data, 'address_id', None)
     )
     db.add(order)
     
@@ -124,7 +125,11 @@ def update_order(order_id: str, order_update: OrderUpdate, db: Session = Depends
     
     update_data = order_update.dict(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(order, field, value)
+        if field == 'address_id':
+            # Handle address_id separately if needed
+            setattr(order, field, value)
+        else:
+            setattr(order, field, value)
     
     # Recalculate total if amount-related fields changed
     if any(field in update_data for field in ['delivery_fee', 'tip']):

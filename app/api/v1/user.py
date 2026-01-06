@@ -13,13 +13,29 @@ router = APIRouter()
 # Request/Response Models
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     email: Optional[str] = None
     phoneNumber: Optional[str] = None
+    avatar: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     currentPassword: str
     newPassword: str
     confirmPassword: str
+
+@router.get("/me")
+async def get_current_user_basic(current_user: User = Depends(get_current_user)):
+    """Get current user basic info (for token validation)"""
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "firstName": current_user.first_name,
+        "lastName": current_user.last_name,
+        "email": current_user.email,
+        "avatar": current_user.avatar,
+        "isAdmin": current_user.is_admin
+    }
 
 @router.get("/profile")
 async def get_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -27,6 +43,8 @@ async def get_profile(current_user: User = Depends(get_current_user), db: Sessio
     return {
         "id": current_user.id,
         "name": current_user.name,
+        "firstName": current_user.first_name,
+        "lastName": current_user.last_name,
         "email": current_user.email,
         "phoneNumber": current_user.phone_number,
         "avatar": current_user.avatar,
@@ -72,7 +90,16 @@ async def update_profile(
     
     if request.name is not None:
         current_user.name = request.name
-    
+
+    if request.firstName is not None:
+        current_user.first_name = request.firstName
+
+    if request.lastName is not None:
+        current_user.last_name = request.lastName
+
+    if request.avatar is not None:
+        current_user.avatar = request.avatar
+
     current_user.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(current_user)

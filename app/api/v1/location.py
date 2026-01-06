@@ -1,61 +1,59 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from app.core.database import get_db
+from app.core.location_service import get_google_maps_service, LocationServiceError
 
 router = APIRouter()
 
 @router.get("/location/reverse-geocode")
 async def reverse_geocode(
-    lat: float = Query(..., alias="lat"),
-    lng: float = Query(..., alias="lng"),
+    lat: float = Query(..., alias="lat", description="Latitude coordinate"),
+    lng: float = Query(..., alias="lng", description="Longitude coordinate"),
     db: Session = Depends(get_db)
 ):
-    """Get address from coordinates (reverse geocoding)"""
-    # In production, integrate with Google Maps API or similar
-    # For now, return a placeholder response
-    
-    # Example: You would call Google Maps Geocoding API
-    # import requests
-    # response = requests.get(
-    #     f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lng}&key=YOUR_API_KEY"
-    # )
-    
-    # Placeholder response
-    return {
-        "address": f"Building # 157, DHA Phase 4 Sector CCA, Lahore, 52000",
-        "formattedAddress": f"DHA Phase 4, Lahore, Punjab, Pakistan",
-        "components": {
-            "street": "Building # 157, DHA Phase 4 Sector CCA",
-            "city": "Lahore",
-            "state": "Punjab",
-            "country": "Pakistan",
-            "postalCode": "52000"
-        },
-        "latitude": lat,
-        "longitude": lng
-    }
+    """
+    Get address from coordinates (reverse geocoding)
+
+    Uses Google Maps API to convert latitude/longitude to human-readable address
+    """
+    try:
+        location_service = get_google_maps_service()
+        result = location_service.reverse_geocode(lat, lng)
+        return result
+    except LocationServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Location service error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 @router.get("/location/geocode")
 async def geocode(
-    address: str = Query(..., alias="address"),
+    address: str = Query(..., alias="address", description="Address to geocode"),
     db: Session = Depends(get_db)
 ):
-    """Get coordinates from address (geocoding)"""
-    # In production, integrate with Google Maps API or similar
-    # For now, return a placeholder response
-    
-    # Example: You would call Google Maps Geocoding API
-    # import requests
-    # response = requests.get(
-    #     f"https://maps.googleapis.com/maps/api/geocode/json?address={address}&key=YOUR_API_KEY"
-    # )
-    
-    # Placeholder response with default coordinates (Lahore)
-    return {
-        "address": address,
-        "latitude": 31.5204,
-        "longitude": 74.3587,
-        "formattedAddress": f"{address}, Lahore, Punjab, Pakistan"
-    }
+    """
+    Get coordinates from address (geocoding)
+
+    Uses Google Maps API to convert address to latitude/longitude coordinates
+    """
+    try:
+        location_service = get_google_maps_service()
+        result = location_service.geocode(address)
+        return result
+    except LocationServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Location service error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 

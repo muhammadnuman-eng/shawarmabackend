@@ -8,7 +8,7 @@ class Review(Base):
     
     id = Column(String(36), primary_key=True, index=True)
     order_id = Column(String(36), ForeignKey("orders.id"), nullable=True, unique=True)
-    product_id = Column(String(36), ForeignKey("menu_items.id"), nullable=True)  # For product reviews
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=True)  # For product reviews
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)  # For mobile app users
     customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)  # For admin panel
     rating = Column(Integer, nullable=False)  # 1-5
@@ -24,5 +24,5 @@ class Review(Base):
     order = relationship("Order", back_populates="review")
     user = relationship("User", back_populates="reviews")
     customer = relationship("Customer", back_populates="reviews")
-    product = relationship("MenuItem", foreign_keys=[product_id], overlaps="reviews")
+    product = relationship("MenuItem", foreign_keys=[product_id])
 

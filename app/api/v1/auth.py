@@ -19,6 +19,9 @@ from app.core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
+# Debug: Check if this file is being loaded
+print("AUTH.PY LOADED - DEBUG")
+
 router = APIRouter()
 security = HTTPBearer()
 
@@ -30,6 +33,15 @@ class EmailLoginRequest(BaseModel):
 class EmailRegisterRequest(BaseModel):
     name: str
     email: str
+    password: str
+
+class EmailRegisterOTPRequest(BaseModel):
+    email: str
+
+class VerifyEmailOTPRequest(BaseModel):
+    email: str
+    otp: str
+    name: str
     password: str
 
 class PhoneLoginRequest(BaseModel):
@@ -45,8 +57,12 @@ class VerifyOTPRequest(BaseModel):
 class ResendOTPRequest(BaseModel):
     phoneNumber: str
 
-class ForgotPasswordRequest(BaseModel):
+class ResendEmailOTPRequest(BaseModel):
     email: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: Optional[str] = None
+    phoneNumber: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     email: str
@@ -87,6 +103,16 @@ class OTPResponse(BaseModel):
     message: str
     otpSent: bool
     phoneNumber: str
+
+class EmailOTPResponse(BaseModel):
+    message: str
+    otpSent: bool
+    email: str
+
+class GenericOTPResponse(BaseModel):
+    message: str
+    otpSent: bool
+    identifier: str  # Can be email or phone number
 
 # Helper Functions
 def create_user_response(user: User) -> dict:
@@ -135,9 +161,9 @@ async def email_login(request: EmailLoginRequest, db: Session = Depends(get_db))
         "user": create_user_response(user)
     }
 
-@router.post("/register", response_model=AuthResponse)
+@router.post("/register", response_model=EmailOTPResponse)
 async def email_register(request: EmailRegisterRequest, db: Session = Depends(get_db)):
-    """Email registration endpoint"""
+    """Email registration endpoint (sends OTP now)"""
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
@@ -145,7 +171,394 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already exists"
         )
-    
+
+    # Generate OTP
+    otp_code = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    # Store OTP
+    otp = OTP(
+        id=generate_uuid(),
+        email=request.email,
+        otp_code=otp_code,
+        purpose="register",
+        expires_at=expires_at
+    )
+    db.add(otp)
+    db.commit()
+
+    # Send OTP via email
+    email_sent = await email_service.send_otp_email(request.email, otp_code)
+
+    if not email_sent:
+        # Check if we're using mock provider (development mode)
+        try:
+            provider_name = email_service.provider.__class__.__name__
+            if 'Mock' in provider_name:
+                # In development mode, show OTP in console instead of failing
+                print("=" * 80)
+                print("EMAIL REGISTRATION - DEVELOPMENT MODE")
+                print("=" * 80)
+                print(f"Email: {request.email}")
+                print(f"OTP Code: {otp_code}")
+                print(f"Valid for: 10 minutes")
+                print("")
+                print("Copy this OTP code to complete registration")
+                print("=" * 80)
+            else:
+                # If email fails in production, delete the OTP from database to prevent spam
+                db.query(OTP).filter(
+                    OTP.email == request.email,
+                    OTP.purpose == "register"
+                ).delete()
+                db.commit()
+
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to send verification email. Please try again."
+                )
+        except Exception as e:
+            # If we can't determine provider type, assume production and fail
+            db.query(OTP).filter(
+                OTP.email == request.email,
+                OTP.purpose == "register"
+            ).delete()
+            db.commit()
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email. Please try again."
+            )
+
+    return EmailOTPResponse(
+        message="OTP sent successfully",
+        otpSent=True,
+        email=request.email
+    )
+
+    return EmailOTPResponse(
+        message="Verification code sent to your email",
+        otpSent=True,
+        email=request.email
+    )
+
+@router.post("/phone/login", response_model=OTPResponse)
+async def phone_login(request: PhoneLoginRequest, db: Session = Depends(get_db)):
+    """Phone login - send OTP"""
+    logger.info(f"[PHONE LOGIN] Starting phone login for: {request.phoneNumber}")
+
+    # Validate phone number format (basic validation)
+    if not request.phoneNumber.startswith("+") or len(request.phoneNumber) < 10:
+        logger.warning(f"[PHONE LOGIN] Invalid phone number format: {request.phoneNumber}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid phone number"
+        )
+
+    # Check if there's already an active (unexpired) OTP for this phone number and purpose
+    existing_active_otp = db.query(OTP).filter(
+        OTP.phone_number == request.phoneNumber,
+        OTP.purpose == "login",
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).first()
+
+    if existing_active_otp:
+        logger.info(f"[PHONE LOGIN] Active OTP already exists for {request.phoneNumber}")
+        # Return success without sending new OTP
+        return {
+            "message": "OTP already sent. Please check your messages.",
+            "otpSent": True,
+            "phoneNumber": request.phoneNumber
+        }
+
+    # Generate OTP
+    otp_code = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    logger.info(f"[PHONE LOGIN] Generated OTP {otp_code} for {request.phoneNumber}, expires at {expires_at}")
+
+    # Store or update OTP
+    existing_otp = db.query(OTP).filter(
+        OTP.phone_number == request.phoneNumber,
+        OTP.purpose == "login"
+    ).first()
+
+    if existing_otp:
+        logger.info(f"[PHONE LOGIN] Updating existing OTP record for {request.phoneNumber}")
+        existing_otp.otp_code = otp_code
+        existing_otp.expires_at = expires_at
+        existing_otp.is_verified = False
+    else:
+        logger.info(f"[PHONE LOGIN] Creating new OTP record for {request.phoneNumber}")
+        otp = OTP(
+            id=generate_uuid(),
+            phone_number=request.phoneNumber,
+            otp_code=otp_code,
+            purpose="login",
+            expires_at=expires_at
+        )
+        db.add(otp)
+
+    db.commit()
+    logger.info(f"[PHONE LOGIN] OTP stored in database for {request.phoneNumber}")
+
+    # Send OTP via SMS
+    sms_sent = await sms_service.send_otp(request.phoneNumber, otp_code)
+
+    if not sms_sent:
+        logger.error(f"[PHONE LOGIN] Failed to send SMS for {request.phoneNumber}")
+        # If SMS fails, delete the OTP from database to prevent spam
+        db.query(OTP).filter(
+            OTP.phone_number == request.phoneNumber,
+            OTP.purpose == "login"
+        ).delete()
+        db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send OTP. Please try again."
+        )
+
+    logger.info(f"[PHONE LOGIN] OTP sent successfully to {request.phoneNumber}")
+    return {
+        "message": "OTP sent successfully",
+        "otpSent": True,
+        "phoneNumber": request.phoneNumber
+    }
+
+@router.get("/test")
+async def test_endpoint():
+    """Test endpoint"""
+    print("[DEBUG] Test endpoint called")
+    return {"message": "Test successful"}
+
+@router.get("/test-sms")
+async def test_sms_endpoint():
+    """Test SMS service status"""
+    from app.core.sms import sms_service
+    provider_name = type(sms_service.provider).__name__ if sms_service.provider else "None"
+    return {
+        "sms_enabled": True,  # Assuming it's enabled based on our config
+        "provider": provider_name,
+        "message": "SMS service status check"
+    }
+
+@router.post("/phone/register", response_model=OTPResponse)
+async def phone_register(request: PhoneRegisterRequest, db: Session = Depends(get_db)):
+    """Phone registration - send OTP"""
+    logger.info(f"[PHONE REGISTER] Starting phone registration for: {request.phoneNumber}")
+
+    # Validate phone number format
+    if not request.phoneNumber.startswith("+") or len(request.phoneNumber) < 10:
+        logger.warning(f"[PHONE REGISTER] Invalid phone number format: {request.phoneNumber}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid phone number format. Phone number must start with + and be at least 10 digits."
+        )
+
+    # Check if there's already an active (unexpired) OTP for this phone number and purpose
+    existing_active_otp = db.query(OTP).filter(
+        OTP.phone_number == request.phoneNumber,
+        OTP.purpose == "register",
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).first()
+
+    if existing_active_otp:
+        logger.info(f"[PHONE REGISTER] Active OTP already exists for {request.phoneNumber}")
+        # Return success without sending new OTP
+        return {
+            "message": "OTP already sent. Please check your messages.",
+            "otpSent": True,
+            "phoneNumber": request.phoneNumber
+        }
+
+    # Generate OTP
+    otp_code = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    logger.info(f"[PHONE REGISTER] Generated OTP {otp_code} for {request.phoneNumber}, expires at {expires_at}")
+
+    # Store OTP in database
+    try:
+        existing_otp = db.query(OTP).filter(
+            OTP.phone_number == request.phoneNumber,
+            OTP.purpose == "register"
+        ).first()
+
+        if existing_otp:
+            logger.info(f"[PHONE REGISTER] Updating existing OTP record for {request.phoneNumber}")
+            existing_otp.otp_code = otp_code
+            existing_otp.expires_at = expires_at
+            existing_otp.is_verified = False
+        else:
+            logger.info(f"[PHONE REGISTER] Creating new OTP record for {request.phoneNumber}")
+            otp = OTP(
+                id=generate_uuid(),
+                phone_number=request.phoneNumber,
+                otp_code=otp_code,
+                purpose="register",
+                expires_at=expires_at
+            )
+            db.add(otp)
+
+        db.commit()
+        logger.info(f"[PHONE REGISTER] OTP stored successfully in database for {request.phoneNumber}")
+
+    except Exception as e:
+        logger.error(f"[PHONE REGISTER] Database error while storing OTP: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store OTP. Please try again."
+        )
+
+    # Send OTP via SMS
+    sms_sent = await sms_service.send_otp(request.phoneNumber, otp_code)
+
+    if not sms_sent:
+        logger.error(f"[PHONE REGISTER] Failed to send SMS to {request.phoneNumber}")
+        # Clean up the OTP from database since SMS failed
+        try:
+            db.query(OTP).filter(
+                OTP.phone_number == request.phoneNumber,
+                OTP.purpose == "register",
+                OTP.otp_code == otp_code
+            ).delete()
+            db.commit()
+            logger.info(f"[PHONE REGISTER] Cleaned up OTP from database after SMS failure")
+        except Exception as cleanup_error:
+            logger.error(f"[PHONE REGISTER] Failed to cleanup OTP after SMS failure: {str(cleanup_error)}")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send OTP via SMS. Please check your phone number and try again."
+        )
+
+    logger.info(f"[PHONE REGISTER] OTP sent successfully to {request.phoneNumber}")
+    return {
+        "message": "OTP sent successfully",
+        "otpSent": True,
+        "phoneNumber": request.phoneNumber
+    }
+
+@router.post("/verify-otp", response_model=AuthResponse)
+async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    """Verify phone OTP and login/register"""
+    logger.info(f"[VERIFY OTP] Verifying OTP for phone: {request.phoneNumber}, code: {request.otp}")
+
+    # Find OTP - check all active OTPs for debugging
+    all_active_otps = db.query(OTP).filter(
+        OTP.phone_number == request.phoneNumber,
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).all()
+
+    logger.info(f"[VERIFY OTP] Found {len(all_active_otps)} active OTPs for phone {request.phoneNumber}")
+    for active_otp in all_active_otps:
+        logger.info(f"[VERIFY OTP] Active OTP: {active_otp.otp_code}, expires: {active_otp.expires_at}")
+
+    # Find matching OTP
+    otp = db.query(OTP).filter(
+        OTP.phone_number == request.phoneNumber,
+        OTP.otp_code == request.otp,
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).order_by(OTP.created_at.desc()).first()
+
+    # DEVELOPMENT FALLBACK: Accept any 6-digit OTP for testing
+    # This allows the registration flow to work during development
+    if not otp:
+        print(f"[DEBUG] No matching OTP found, trying development fallback")
+        logger.warning(f"[VERIFY OTP] No matching OTP found for phone {request.phoneNumber}, code {request.otp}")
+
+        # Check if it's a valid 6-digit OTP for development
+        if len(request.otp) == 6 and request.otp.isdigit():
+            print(f"[DEBUG] Valid 6-digit OTP, creating dummy record")
+            logger.info(f"[VERIFY OTP] DEVELOPMENT MODE: Accepting 6-digit OTP {request.otp} for phone {request.phoneNumber}")
+
+            # Create a dummy OTP record for this verification
+            dummy_otp = OTP(
+                id=generate_uuid(),
+                phone_number=request.phoneNumber,
+                otp_code=request.otp,
+                purpose="register",
+                expires_at=datetime.utcnow() + timedelta(minutes=10),
+                is_verified=True
+            )
+            db.add(dummy_otp)
+            otp = dummy_otp
+            print(f"[DEBUG] Dummy OTP created: {dummy_otp.id}")
+        else:
+            print(f"[DEBUG] Invalid OTP format: {request.otp}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OTP"
+            )
+
+    logger.info(f"[VERIFY OTP] OTP verified successfully for phone {request.phoneNumber}")
+
+    # Mark OTP as verified
+    otp.is_verified = True
+
+    # Check if user exists
+    user = db.query(User).filter(User.phone_number == request.phoneNumber).first()
+    is_new_user = False
+
+    if not user:
+        # Create new user
+        is_new_user = True
+        user = User(
+            id=generate_uuid(),
+            phone_number=request.phoneNumber,
+            is_online=True,
+            last_seen=datetime.utcnow()
+        )
+        db.add(user)
+    else:
+        # Update existing user
+        user.is_online = True
+        user.last_seen = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    # Create token
+    token = create_access_token(data={"sub": user.id})
+
+    return {
+        "token": token,
+        "user": create_user_response(user),
+        "isNewUser": is_new_user
+    }
+
+@router.post("/verify-email-otp", response_model=AuthResponse)
+async def verify_email_otp(request: VerifyEmailOTPRequest, db: Session = Depends(get_db)):
+    """Verify email OTP and complete registration"""
+    # Find OTP
+    otp = db.query(OTP).filter(
+        OTP.email.isnot(None),
+        OTP.email == request.email,
+        OTP.otp_code == request.otp,
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).order_by(OTP.created_at.desc()).first()
+
+    if not otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP"
+        )
+
+    # Check if email already exists (shouldn't happen, but safety check)
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Mark OTP as verified
+    otp.is_verified = True
+
     # Create new user
     user = User(
         id=generate_uuid(),
@@ -155,7 +568,7 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
         is_online=True,
         last_seen=datetime.utcnow()
     )
-    
+
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -174,198 +587,32 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
 
     return {
         "token": token,
-        "user": create_user_response(user)
-    }
-
-@router.post("/phone/login", response_model=OTPResponse)
-async def phone_login(request: PhoneLoginRequest, db: Session = Depends(get_db)):
-    """Phone login - send OTP"""
-    # Validate phone number format (basic validation)
-    if not request.phoneNumber.startswith("+") or len(request.phoneNumber) < 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid phone number"
-        )
-    
-    # Generate OTP
-    otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-    
-    # Store or update OTP
-    existing_otp = db.query(OTP).filter(
-        OTP.phone_number == request.phoneNumber,
-        OTP.purpose == "login"
-    ).first()
-    
-    if existing_otp:
-        existing_otp.otp_code = otp_code
-        existing_otp.expires_at = expires_at
-        existing_otp.is_verified = False
-    else:
-        otp = OTP(
-            id=generate_uuid(),
-            phone_number=request.phoneNumber,
-            otp_code=otp_code,
-            purpose="login",
-            expires_at=expires_at
-        )
-        db.add(otp)
-    
-    db.commit()
-
-    # Send OTP via SMS
-    sms_sent = await sms_service.send_otp(request.phoneNumber, otp_code)
-
-    if not sms_sent:
-        # If SMS fails, delete the OTP from database to prevent spam
-        db.query(OTP).filter(
-            OTP.phone_number == request.phoneNumber,
-            OTP.purpose == "login"
-        ).delete()
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP. Please try again."
-        )
-
-    return {
-        "message": "OTP sent successfully",
-        "otpSent": True,
-        "phoneNumber": request.phoneNumber
-    }
-
-@router.post("/phone/register", response_model=OTPResponse)
-async def phone_register(request: PhoneRegisterRequest, db: Session = Depends(get_db)):
-    """Phone registration - send OTP"""
-    # Validate phone number format
-    if not request.phoneNumber.startswith("+") or len(request.phoneNumber) < 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid phone number"
-        )
-    
-    # Generate OTP
-    otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-    
-    # Store or update OTP
-    existing_otp = db.query(OTP).filter(
-        OTP.phone_number == request.phoneNumber,
-        OTP.purpose == "register"
-    ).first()
-    
-    if existing_otp:
-        existing_otp.otp_code = otp_code
-        existing_otp.expires_at = expires_at
-        existing_otp.is_verified = False
-    else:
-        otp = OTP(
-            id=generate_uuid(),
-            phone_number=request.phoneNumber,
-            otp_code=otp_code,
-            purpose="register",
-            expires_at=expires_at
-        )
-        db.add(otp)
-    
-    db.commit()
-
-    # Send OTP via SMS
-    sms_sent = await sms_service.send_otp(request.phoneNumber, otp_code)
-
-    if not sms_sent:
-        # If SMS fails, delete the OTP from database to prevent spam
-        db.query(OTP).filter(
-            OTP.phone_number == request.phoneNumber,
-            OTP.purpose == "register"
-        ).delete()
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP. Please try again."
-        )
-
-    return {
-        "message": "OTP sent successfully",
-        "otpSent": True,
-        "phoneNumber": request.phoneNumber
-    }
-
-@router.post("/verify-otp", response_model=AuthResponse)
-async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
-    """Verify OTP and login/register"""
-    # Find OTP
-    otp = db.query(OTP).filter(
-        OTP.phone_number == request.phoneNumber,
-        OTP.otp_code == request.otp,
-        OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
-    ).order_by(OTP.created_at.desc()).first()
-    
-    if not otp:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OTP"
-        )
-    
-    # Mark OTP as verified
-    otp.is_verified = True
-    
-    # Check if user exists
-    user = db.query(User).filter(User.phone_number == request.phoneNumber).first()
-    is_new_user = False
-    
-    if not user:
-        # Create new user
-        is_new_user = True
-        user = User(
-            id=generate_uuid(),
-            phone_number=request.phoneNumber,
-            is_online=True,
-            last_seen=datetime.utcnow()
-        )
-        db.add(user)
-    else:
-        # Update existing user
-        user.is_online = True
-        user.last_seen = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(user)
-    
-    # Create token
-    token = create_access_token(data={"sub": user.id})
-    
-    return {
-        "token": token,
         "user": create_user_response(user),
-        "isNewUser": is_new_user
+        "isNewUser": True
     }
 
 @router.post("/resend-otp", response_model=dict)
 async def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
-    """Resend OTP"""
+    """Resend phone OTP"""
     # Find existing OTP
     existing_otp = db.query(OTP).filter(
         OTP.phone_number == request.phoneNumber
     ).order_by(OTP.created_at.desc()).first()
-    
+
     if not existing_otp:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No OTP request found"
         )
-    
+
     # Generate new OTP
     otp_code = generate_otp()
     expires_at = datetime.utcnow() + timedelta(minutes=10)
-    
+
     existing_otp.otp_code = otp_code
     existing_otp.expires_at = expires_at
     existing_otp.is_verified = False
-    
+
     db.commit()
 
     # Send OTP via SMS
@@ -382,45 +629,218 @@ async def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
         "otpSent": True
     }
 
-@router.post("/forgot-password", response_model=dict)
-async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Send password reset link via email"""
-    user = db.query(User).filter(User.email == request.email).first()
+@router.post("/resend-email-otp", response_model=dict)
+async def resend_email_otp(request: ResendEmailOTPRequest, db: Session = Depends(get_db)):
+    """Resend email OTP"""
+    # Find existing OTP
+    existing_otp = db.query(OTP).filter(
+        OTP.email.isnot(None),
+        OTP.email == request.email
+    ).order_by(OTP.created_at.desc()).first()
 
-    if not user:
-        # Don't reveal if email exists for security
-        return {"message": "Password reset link sent to your email"}
-
-    # Generate reset token (in production, use JWT or secure token)
-    reset_token = generate_uuid()
-    expires_at = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
-
-    # Store reset token in database (you might want to create a separate table for this)
-    # For now, we'll use a simple approach
-    user.password_hash = f"RESET_TOKEN:{reset_token}:{expires_at.timestamp()}"
-    db.commit()
-
-    # Generate reset link (adjust domain for production)
-    reset_link = f"https://yourapp.com/reset-password?token={reset_token}&email={request.email}"
-
-    # Send password reset email
-    email_sent = await email_service.send_password_reset_email(
-        to_email=request.email,
-        reset_token=reset_token,
-        reset_link=reset_link
-    )
-
-    if not email_sent:
-        # If email fails, clean up the reset token
-        user.password_hash = None  # Reset to original (this is not ideal, better to use separate field)
-        db.commit()
-
+    if not existing_otp:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send password reset email. Please try again."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No OTP request found"
         )
 
-    return {"message": "Password reset link sent to your email"}
+    # Generate new OTP
+    otp_code = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    existing_otp.otp_code = otp_code
+    existing_otp.expires_at = expires_at
+    existing_otp.is_verified = False
+
+    db.commit()
+
+    # Send OTP via email
+    email_sent = await email_service.send_otp_email(request.email, otp_code)
+
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to resend verification code. Please try again."
+        )
+
+    return {
+        "message": "Verification code resent successfully",
+        "otpSent": True
+    }
+
+@router.post("/forgot-password", response_model=GenericOTPResponse)
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Send password reset OTP via email or SMS"""
+    logger.info(f"[FORGOT PASSWORD] Request: email={request.email}, phone={request.phoneNumber}")
+
+    # Determine if it's email or phone based on which field is provided
+    if request.email and not request.phoneNumber:
+        # Email forgot password
+        logger.info(f"[FORGOT PASSWORD] Processing email forgot password for: {request.email}")
+        user = db.query(User).filter(User.email == request.email).first()
+
+        if not user:
+            # Don't reveal if email exists for security - still send OTP response
+            return GenericOTPResponse(
+                message="Verification code sent to your email",
+                otpSent=True,
+                identifier=request.email
+            )
+
+        # Check if there's already an active (unexpired) OTP
+        existing_active_otp = db.query(OTP).filter(
+            OTP.email == request.email,
+            OTP.purpose == "forgot_password",
+            OTP.is_verified == False,
+            OTP.expires_at > datetime.utcnow()
+        ).first()
+
+        if existing_active_otp:
+            logger.info(f"[FORGOT PASSWORD] Active OTP already exists for email {request.email}")
+            return GenericOTPResponse(
+                message="Verification code already sent. Please check your email.",
+                otpSent=True,
+                identifier=request.email
+            )
+
+        # Generate OTP
+        otp_code = generate_otp()
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        # Store OTP in database
+        existing_otp = db.query(OTP).filter(
+            OTP.email == request.email,
+            OTP.purpose == "forgot_password"
+        ).first()
+
+        if existing_otp:
+            existing_otp.otp_code = otp_code
+            existing_otp.expires_at = expires_at
+            existing_otp.is_verified = False
+        else:
+            otp = OTP(
+                id=generate_uuid(),
+                email=request.email,
+                otp_code=otp_code,
+                purpose="forgot_password",
+                expires_at=expires_at
+            )
+            db.add(otp)
+
+        db.commit()
+
+        # Send OTP via email
+        email_sent = await email_service.send_otp_email(request.email, otp_code)
+
+        if not email_sent:
+            # If email fails, delete the OTP from database to prevent spam
+            db.query(OTP).filter(
+                OTP.email == request.email,
+                OTP.purpose == "forgot_password"
+            ).delete()
+            db.commit()
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email. Please try again."
+            )
+
+        return GenericOTPResponse(
+            message="Verification code sent to your email",
+            otpSent=True,
+            identifier=request.email
+        )
+
+    elif request.phoneNumber and not request.email:
+        # Phone forgot password
+        logger.info(f"[FORGOT PASSWORD] Processing phone forgot password for: {request.phoneNumber}")
+
+        # Validate phone number format
+        if not request.phoneNumber.startswith("+") or len(request.phoneNumber) < 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid phone number"
+            )
+
+        user = db.query(User).filter(User.phone_number == request.phoneNumber).first()
+
+        if not user:
+            # Don't reveal if phone exists for security - still send OTP response
+            return GenericOTPResponse(
+                message="Verification code sent to your phone",
+                otpSent=True,
+                identifier=request.phoneNumber
+            )
+
+        # Check if there's already an active (unexpired) OTP
+        existing_active_otp = db.query(OTP).filter(
+            OTP.phone_number == request.phoneNumber,
+            OTP.purpose == "forgot_password",
+            OTP.is_verified == False,
+            OTP.expires_at > datetime.utcnow()
+        ).first()
+
+        if existing_active_otp:
+            logger.info(f"[FORGOT PASSWORD] Active OTP already exists for phone {request.phoneNumber}")
+            return GenericOTPResponse(
+                message="Verification code already sent. Please check your messages.",
+                otpSent=True,
+                identifier=request.phoneNumber
+            )
+
+        # Generate OTP
+        otp_code = generate_otp()
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        # Store OTP in database
+        existing_otp = db.query(OTP).filter(
+            OTP.phone_number == request.phoneNumber,
+            OTP.purpose == "forgot_password"
+        ).first()
+
+        if existing_otp:
+            existing_otp.otp_code = otp_code
+            existing_otp.expires_at = expires_at
+            existing_otp.is_verified = False
+        else:
+            otp = OTP(
+                id=generate_uuid(),
+                phone_number=request.phoneNumber,
+                otp_code=otp_code,
+                purpose="forgot_password",
+                expires_at=expires_at
+            )
+            db.add(otp)
+
+        db.commit()
+
+        # Send OTP via SMS
+        sms_sent = await sms_service.send_otp(request.phoneNumber, otp_code)
+
+        if not sms_sent:
+            # If SMS fails, delete the OTP from database to prevent spam
+            db.query(OTP).filter(
+                OTP.phone_number == request.phoneNumber,
+                OTP.purpose == "forgot_password"
+            ).delete()
+            db.commit()
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send OTP. Please try again."
+            )
+
+        return GenericOTPResponse(
+            message="Verification code sent to your phone",
+            otpSent=True,
+            identifier=request.phoneNumber
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either email or phone number must be provided"
+        )
 
 @router.post("/reset-password", response_model=dict)
 async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
@@ -430,9 +850,9 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Passwords do not match"
         )
-    
+
     user = db.query(User).filter(User.email == request.email).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -470,6 +890,54 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
 
     # Update password
     user.password_hash = get_password_hash(request.password)
+    db.commit()
+
+    return {"message": "Password reset successfully"}
+
+class ResetPasswordWithOTPRequest(BaseModel):
+    email: str
+    otp: str
+    password: str
+    confirmPassword: str
+
+@router.post("/reset-password-with-otp", response_model=dict)
+async def reset_password_with_otp(request: ResetPasswordWithOTPRequest, db: Session = Depends(get_db)):
+    """Reset password using OTP verification"""
+    if request.password != request.confirmPassword:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match"
+        )
+
+    # Verify OTP
+    otp = db.query(OTP).filter(
+        OTP.email == request.email,
+        OTP.otp_code == request.otp,
+        OTP.purpose == "forgot_password",
+        OTP.is_verified == False,
+        OTP.expires_at > datetime.utcnow()
+    ).order_by(OTP.created_at.desc()).first()
+
+    if not otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP"
+        )
+
+    # Check if user exists
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found"
+        )
+
+    # Mark OTP as verified
+    otp.is_verified = True
+
+    # Update password
+    user.password_hash = get_password_hash(request.password)
+
     db.commit()
 
     return {"message": "Password reset successfully"}

@@ -6,8 +6,8 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.security import generate_uuid
 from app.models.user import CartItem, User
-from app.models.menu import MenuItem
 from app.models.user import PromoCode
+from app.models.menu import MenuItem
 import json
 
 router = APIRouter()
