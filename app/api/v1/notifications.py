@@ -19,7 +19,7 @@ class UpdateNotificationSettingsRequest(BaseModel):
     pushNotifications: Optional[bool] = None
     emailNotifications: Optional[bool] = None
 
-@router.get("/notifications")
+@router.get("/")
 async def get_notifications(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -74,7 +74,7 @@ async def get_notifications(
         "unreadCount": unread_count
     }
 
-@router.put("/notifications/{notification_id}/read")
+@router.put("/{notification_id}/read")
 async def mark_notification_read(
     notification_id: str,
     current_user: User = Depends(get_current_user),
@@ -100,7 +100,7 @@ async def mark_notification_read(
         "notificationId": notification_id
     }
 
-@router.put("/notifications/read-all")
+@router.put("/read-all")
 async def mark_all_notifications_read(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -118,7 +118,7 @@ async def mark_all_notifications_read(
         "count": count
     }
 
-@router.delete("/notifications/{notification_id}")
+@router.delete("/{notification_id}")
 async def delete_notification(
     notification_id: str,
     current_user: User = Depends(get_current_user),
@@ -141,7 +141,7 @@ async def delete_notification(
     
     return {"message": "Notification deleted successfully"}
 
-@router.get("/notifications/settings")
+@router.get("/settings")
 async def get_notification_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -170,7 +170,7 @@ async def get_notification_settings(
         "emailNotifications": settings.email_notifications
     }
 
-@router.put("/notifications/settings")
+@router.put("/settings")
 async def update_notification_settings(
     request: UpdateNotificationSettingsRequest,
     current_user: User = Depends(get_current_user),

@@ -65,7 +65,7 @@ def calculate_cart_totals(cart_items: List[CartItem], promo_discount: float = 0.
         "promoDiscount": round(promo_discount, 2)
     }
 
-@router.get("/cart")
+@router.get("/")
 async def get_cart(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -117,7 +117,7 @@ async def get_cart(
         **totals
     }
 
-@router.post("/cart")
+@router.post("/")
 async def add_to_cart(
     request: AddToCartRequest,
     current_user: User = Depends(get_current_user),
@@ -177,7 +177,7 @@ async def add_to_cart(
         "addOns": add_ons_list
     }
 
-@router.put("/cart/{cart_item_id}")
+@router.put("/{cart_item_id}")
 async def update_cart_item(
     cart_item_id: str,
     request: UpdateCartItemRequest,
@@ -216,7 +216,7 @@ async def update_cart_item(
         "total": total
     }
 
-@router.delete("/cart/{cart_item_id}")
+@router.delete("/{cart_item_id}")
 async def remove_cart_item(
     cart_item_id: str,
     current_user: User = Depends(get_current_user),
@@ -239,7 +239,7 @@ async def remove_cart_item(
     
     return {"message": "Item removed from cart successfully"}
 
-@router.delete("/cart")
+@router.delete("/")
 async def clear_cart(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -250,7 +250,7 @@ async def clear_cart(
     
     return {"message": "Cart cleared successfully"}
 
-@router.post("/cart/promo")
+@router.post("/promo")
 async def apply_promo_code(
     request: ApplyPromoRequest,
     current_user: User = Depends(get_current_user),

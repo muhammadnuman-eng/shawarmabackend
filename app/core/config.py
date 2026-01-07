@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-this-secret-key-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://10.147.118.151:8081,http://10.147.118.151:3000,http://10.147.118.151"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://10.147.118.151:8081,http://10.147.118.151:3000,http://10.147.118.151,http://192.168.100.125:8081,http://192.168.100.125:3000,http://192.168.100.125"
 
     # SMS Service Configuration (Twilio)
     TWILIO_ACCOUNT_SID: Optional[str] = None
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
     # Google Maps API Configuration
-    GOOGLE_MAPS_API_KEY: Optional[str] = None
+    GOOGLE_MAPS_API_KEY: Optional[str] = "AIzaSyB8dti-R6Ky04fwToZ4mam0FQ2ksF1Xek0"  # Updated Google Maps API key
 
     # Google AI API Configuration
     GEMINI_API_KEY: Optional[str] = None

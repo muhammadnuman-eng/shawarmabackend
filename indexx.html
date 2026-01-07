@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Google Maps API Key</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8dti-R6Ky04fwToZ4mam0FQ2ksF1Xek0&callback=initMap" async defer></script>
+    <style>
+        #map { height: 400px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Google Maps API Test</h1>
+    <div id="map"></div>
+    <div id="status"></div>
+
+    <script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 40.7128, lng: -74.0060 },
+                zoom: 10
+            });
+            
+            const marker = new google.maps.Marker({
+                position: { lat: 40.7128, lng: -74.0060 },
+                map: map,
+                title: 'New York City'
+            });
+            
+            document.getElementById('status').innerHTML = '<span style="color: green;">✓ Maps loaded successfully! API key is working.</span>';
+        }
+
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+                    document.getElementById('status').innerHTML = '<span style="color: red;">✗ Maps failed to load. Check API key or restrictions.</span>';
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

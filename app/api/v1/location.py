@@ -6,7 +6,7 @@ from app.core.location_service import get_google_maps_service, LocationServiceEr
 
 router = APIRouter()
 
-@router.get("/location/reverse-geocode")
+@router.get("/reverse-geocode")
 async def reverse_geocode(
     lat: float = Query(..., alias="lat", description="Latitude coordinate"),
     lng: float = Query(..., alias="lng", description="Longitude coordinate"),
@@ -32,7 +32,7 @@ async def reverse_geocode(
             detail=f"Internal server error: {str(e)}"
         )
 
-@router.get("/location/geocode")
+@router.get("/geocode")
 async def geocode(
     address: str = Query(..., alias="address", description="Address to geocode"),
     db: Session = Depends(get_db)

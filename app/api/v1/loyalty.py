@@ -8,7 +8,7 @@ from app.models.user import User, LoyaltyPoint, Reward
 
 router = APIRouter()
 
-@router.get("/loyalty/points")
+@router.get("/points")
 async def get_loyalty_points(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -56,7 +56,7 @@ async def get_loyalty_points(
         "visitsRequired": 6  # Example
     }
 
-@router.get("/loyalty/rewards")
+@router.get("/rewards")
 async def get_rewards(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -78,7 +78,7 @@ async def get_rewards(
         ]
     }
 
-@router.post("/loyalty/rewards/{reward_id}/redeem")
+@router.post("/rewards/{reward_id}/redeem")
 async def redeem_reward(
     reward_id: str,
     current_user: User = Depends(get_current_user),
