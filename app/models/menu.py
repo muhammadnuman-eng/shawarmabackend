@@ -51,7 +51,7 @@ class MenuItem(Base):
     order_items = relationship("OrderItem", back_populates="menu_item")
     section_items = relationship("MenuSectionItem", back_populates="menu_item")
     favorites = relationship("Favorite", foreign_keys="Favorite.product_id")
-    reviews = relationship("Review", foreign_keys="Review.product_id")
+    reviews = relationship("Review", foreign_keys="Review.product_id", back_populates="product")
 
 class MenuSection(Base):
     __tablename__ = "menu_sections"

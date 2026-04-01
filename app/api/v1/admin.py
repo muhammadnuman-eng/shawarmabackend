@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 from math import ceil
 from app.core.database import get_db
@@ -93,6 +94,46 @@ async def get_all_users_admin(
     
     return {
         "users": users_list,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "totalPages": ceil(total / limit) if total > 0 else 0
+        }
+    }
+
+@router.get("/admin/orders")
+async def get_all_orders_admin(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get latest orders for admin panel"""
+    query = db.query(Order)
+    total = query.count()
+    offset = (page - 1) * limit
+    orders = query.order_by(Order.created_at.desc()).offset(offset).limit(limit).all()
+    new_cutoff = datetime.utcnow() - timedelta(minutes=10)
+
+    orders_list = []
+    for order in orders:
+        customer_name = None
+        if order.user:
+            customer_name = order.user.name or order.user.email
+
+        orders_list.append({
+            "id": order.id,
+            "orderNumber": order.order_number,
+            "status": order.status,
+            "total": order.total,
+            "customerName": customer_name or "Customer",
+            "createdAt": order.created_at.isoformat() if order.created_at else None,
+            "isNew": bool(order.created_at and order.created_at >= new_cutoff),
+        })
+
+    return {
+        "orders": orders_list,
         "pagination": {
             "page": page,
             "limit": limit,

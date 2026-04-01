@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.core.security import generate_uuid
 from app.models.order import Order, OrderItem, OrderTracking
-from app.models.user import User, Address, CartItem
+from app.models.user import User, Address, CartItem, Notification
 from app.models.menu import MenuItem
 from sqlalchemy import and_
 import json
@@ -42,7 +42,7 @@ class CreateOrderRequest(BaseModel):
     total: float
 
 class CancelOrderRequest(BaseModel):
-    reason: str
+    reason: Optional[str] = "Cancelled by customer"
 
 def generate_order_number(db: Session) -> str:
     """Generate unique order number"""
@@ -77,28 +77,82 @@ async def create_order(
         if request.addressId:
             # For pickup orders, fetch addresses from database
             if request.deliveryType.lower() == 'pickup':
-                # For pickup orders, use hardcoded system user ID
-                system_user_id = "system-user-pickup"
+                # Ensure we always use the system pickup user
+                system_user = db.query(User).filter(User.email == "system@shawarma.local").first()
+                if not system_user:
+                    system_user = db.query(User).filter(User.id == "system-user-pickup").first()
+                if not system_user:
+                    system_user = User(
+                        id="system-user-pickup",
+                        name="System",
+                        email="system@shawarma.local",
+                        is_admin=True
+                    )
+                    db.add(system_user)
+                    db.flush()
+
+                pickup_id_aliases = {
+                    "1": "dha-phase-4",
+                    "2": "main-pia-road",
+                    "3": "lake-city",
+                }
+                requested_pickup_id = pickup_id_aliases.get(request.addressId, request.addressId)
 
                 # Fetch pickup address from database
-                logger.info(f"About to query database for address {request.addressId} with user {system_user_id}")
+                logger.info(f"About to query database for address {requested_pickup_id} with user {system_user.id}")
                 pickup_address = db.query(Address).filter(
-                    Address.id == request.addressId,
-                    Address.user_id == system_user_id
+                    Address.id == requested_pickup_id,
+                    Address.user_id == system_user.id
                 ).first()
                 logger.info(f"Query result: {pickup_address}")
 
                 if not pickup_address:
-                    # Try to see what addresses exist
-                    all_pickup_addresses = db.query(Address).filter(Address.user_id == system_user_id).all()
-                    logger.info(f"All pickup addresses for system user: {len(all_pickup_addresses)}")
-                    for addr in all_pickup_addresses:
-                        logger.info(f"  - {addr.id}: {addr.name}")
-
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Pickup address not found"
-                    )
+                    # Auto-create known pickup addresses if seeds were not applied
+                    predefined_pickups = {
+                        "dha-phase-4": {
+                            "name": "DHA Phase 4",
+                            "address": "Building # 157, DHA Phase 4 Sector CCA Dha Phase 4, Lahore, 52000",
+                            "latitude": 31.4697,
+                            "longitude": 74.2728,
+                        },
+                        "main-pia-road": {
+                            "name": "Main PIA Road",
+                            "address": "39D, Main PIA Commercial Road, Block D Pia Housing Scheme, Lahore, 54770",
+                            "latitude": 31.5204,
+                            "longitude": 74.3528,
+                        },
+                        "lake-city": {
+                            "name": "Lake City",
+                            "address": "1160 Street 44, Block M 3 A Lake City, Lahore",
+                            "latitude": 31.4833,
+                            "longitude": 74.3833,
+                        },
+                    }
+                    fallback = predefined_pickups.get(requested_pickup_id)
+                    if fallback:
+                        pickup_address = Address(
+                            id=requested_pickup_id,
+                            user_id=system_user.id,
+                            name=fallback["name"],
+                            address=fallback["address"],
+                            latitude=fallback["latitude"],
+                            longitude=fallback["longitude"],
+                            type="pickup",
+                            is_default=False
+                        )
+                        db.add(pickup_address)
+                        db.flush()
+                    else:
+                        # Last fallback: use first available pickup address
+                        pickup_address = db.query(Address).filter(
+                            Address.user_id == system_user.id,
+                            Address.type == "pickup"
+                        ).first()
+                        if not pickup_address:
+                            raise HTTPException(
+                                status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Pickup address not found"
+                            )
 
                 address_data = {
                     'id': pickup_address.id,
@@ -164,7 +218,7 @@ async def create_order(
             id=order_id,
             order_number=order_number,
             user_id=current_user.id,
-            address_id=request.addressId,
+            address_id=address.id if address and hasattr(address, "id") else request.addressId,
             delivery_type=request.deliveryType,
             payment_method=request.paymentMethod,
             payment_status="pending",
@@ -220,6 +274,41 @@ async def create_order(
             message="Order placed"
         )
         db.add(tracking)
+
+        # Notify customer that order has been placed
+        customer_notification = Notification(
+            id=generate_uuid(),
+            user_id=current_user.id,
+            type="order_status",
+            title="Your order has been placed",
+            message=f"Order {order_number} has been placed successfully.",
+            data=json.dumps({
+                "orderId": order_id,
+                "orderNumber": order_number,
+                "status": "pending"
+            })
+        )
+        db.add(customer_notification)
+
+        # Notify all admin users about new order
+        admin_users = db.query(User).filter(User.is_admin == True).all()
+        for admin_user in admin_users:
+            admin_notification = Notification(
+                id=generate_uuid(),
+                user_id=admin_user.id,
+                type="new_order",
+                title="New order received",
+                message=f"New order {order_number} placed by {current_user.name or current_user.email or 'customer'}",
+                data=json.dumps({
+                    "orderId": order_id,
+                    "orderNumber": order_number,
+                    "customerId": current_user.id,
+                    "customerName": current_user.name,
+                    "total": request.total,
+                    "status": "pending"
+                })
+            )
+            db.add(admin_notification)
 
         print(f"[DEBUG] About to commit order: {order_id}")
         print(f"[DEBUG] Order object before commit: id={order.id}, number={order.order_number}")
@@ -461,6 +550,15 @@ async def cancel_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Order cannot be cancelled at this stage"
         )
+
+    # Allow cancellation only within first 2 minutes after order placement
+    if order.created_at:
+        elapsed_seconds = (datetime.utcnow() - order.created_at.replace(tzinfo=None)).total_seconds()
+        if elapsed_seconds > 120:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order can only be cancelled within 2 minutes of placement"
+            )
     
     order.status = "cancelled"
     
@@ -469,9 +567,42 @@ async def cancel_order(
         id=generate_uuid(),
         order_id=order_id,
         status="cancelled",
-        message=f"Order cancelled: {request.reason}"
+        message=f"Order cancelled: {request.reason or 'Cancelled by customer'}"
     )
     db.add(tracking)
+
+    # Notify customer about cancellation
+    customer_notification = Notification(
+        id=generate_uuid(),
+        user_id=current_user.id,
+        type="order_status",
+        title="Your order has been cancelled",
+        message=f"Order {order.order_number or order.id} has been cancelled.",
+        data=json.dumps({
+            "orderId": order.id,
+            "orderNumber": order.order_number,
+            "status": "cancelled"
+        })
+    )
+    db.add(customer_notification)
+
+    # Notify all admin users that order has been cancelled
+    admin_users = db.query(User).filter(User.is_admin == True).all()
+    for admin_user in admin_users:
+        admin_notification = Notification(
+            id=generate_uuid(),
+            user_id=admin_user.id,
+            type="order_cancelled",
+            title="Order cancelled",
+            message=f"Order {order.order_number or order.id} has been cancelled by customer.",
+            data=json.dumps({
+                "orderId": order.id,
+                "orderNumber": order.order_number,
+                "customerId": current_user.id,
+                "status": "cancelled"
+            })
+        )
+        db.add(admin_notification)
     
     db.commit()
     
@@ -580,9 +711,45 @@ async def reorder(
         id=generate_uuid(),
         order_id=new_order_id,
         status="pending",
-        message="Order placed"
+        message=f"Order re-placed from {old_order.order_number or old_order.id}"
     )
     db.add(tracking)
+
+    # Notify customer about reorder
+    customer_notification = Notification(
+        id=generate_uuid(),
+        user_id=current_user.id,
+        type="order_status",
+        title="Your order has been re-placed",
+        message=f"Order {new_order_number} has been placed again successfully.",
+        data=json.dumps({
+            "orderId": new_order_id,
+            "orderNumber": new_order_number,
+            "sourceOrderId": old_order.id,
+            "status": "pending"
+        })
+    )
+    db.add(customer_notification)
+
+    # Notify all admins about reorder
+    admin_users = db.query(User).filter(User.is_admin == True).all()
+    for admin_user in admin_users:
+        admin_notification = Notification(
+            id=generate_uuid(),
+            user_id=admin_user.id,
+            type="order_reordered",
+            title="Order placed again",
+            message=f"Customer {current_user.name or current_user.email or current_user.id} reordered as {new_order_number}.",
+            data=json.dumps({
+                "orderId": new_order_id,
+                "orderNumber": new_order_number,
+                "sourceOrderId": old_order.id,
+                "sourceOrderNumber": old_order.order_number,
+                "customerId": current_user.id,
+                "status": "pending"
+            })
+        )
+        db.add(admin_notification)
     
     db.commit()
     db.refresh(new_order)

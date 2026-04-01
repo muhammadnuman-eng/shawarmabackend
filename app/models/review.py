@@ -24,5 +24,5 @@ class Review(Base):
     order = relationship("Order", back_populates="review")
     user = relationship("User", back_populates="reviews")
     customer = relationship("Customer", back_populates="reviews")
-    product = relationship("MenuItem", foreign_keys=[product_id])
+    product = relationship("MenuItem", foreign_keys=[product_id], back_populates="reviews")
 

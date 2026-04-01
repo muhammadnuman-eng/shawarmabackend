@@ -464,16 +464,16 @@ async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
         OTP.expires_at > datetime.utcnow()
     ).order_by(OTP.created_at.desc()).first()
 
-    # DEVELOPMENT FALLBACK: Accept any 6-digit OTP for testing
+    # DEVELOPMENT FALLBACK: Accept any 4-digit OTP for testing
     # This allows the registration flow to work during development
     if not otp:
         print(f"[DEBUG] No matching OTP found, trying development fallback")
         logger.warning(f"[VERIFY OTP] No matching OTP found for phone {request.phoneNumber}, code {request.otp}")
 
-        # Check if it's a valid 6-digit OTP for development
-        if len(request.otp) == 6 and request.otp.isdigit():
-            print(f"[DEBUG] Valid 6-digit OTP, creating dummy record")
-            logger.info(f"[VERIFY OTP] DEVELOPMENT MODE: Accepting 6-digit OTP {request.otp} for phone {request.phoneNumber}")
+        # Check if it's a valid 4-digit OTP for development
+        if len(request.otp) == 4 and request.otp.isdigit():
+            print(f"[DEBUG] Valid 4-digit OTP, creating dummy record")
+            logger.info(f"[VERIFY OTP] DEVELOPMENT MODE: Accepting 4-digit OTP {request.otp} for phone {request.phoneNumber}")
 
             # Create a dummy OTP record for this verification
             dummy_otp = OTP(
