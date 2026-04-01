@@ -10,8 +10,11 @@ def create_database_engine():
     database_url = settings.database_url
     print(f"DATABASE: Initial database_url from settings: {database_url}")
 
-    # Force SQLite for local development if no database environment variables
-    if (not os.getenv('MYSQLHOST') and
+    # Force SQLite only when no explicit database config exists anywhere.
+    # IMPORTANT: settings.database_url may come from .env (not process env), so
+    # never override when a non-sqlite URL is already resolved.
+    if (database_url.startswith('sqlite') and
+        not os.getenv('MYSQLHOST') and
         not os.getenv('DB_HOST') and
         not os.getenv('PGHOST') and
         not os.getenv('POSTGRES_HOST') and
