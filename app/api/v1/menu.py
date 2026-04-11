@@ -4,6 +4,8 @@ from typing import List, Optional
 import uuid
 from app.core.database import get_db
 from app.models.menu import MenuItem, Category, MenuSection, MenuSectionItem
+import json as json_lib
+
 from app.schemas.menu import (
     MenuItemCreate, MenuItemUpdate, MenuItemResponse,
     CategoryCreate, CategoryResponse,
@@ -181,6 +183,22 @@ def delete_menu_section(section_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Menu section deleted successfully"}
 
+def _coerce_image_list(raw) -> Optional[List[str]]:
+    """Normalize SQLAlchemy JSON / string JSON to list of URL strings."""
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return [str(x) for x in raw if x]
+    if isinstance(raw, str):
+        try:
+            data = json_lib.loads(raw)
+            if isinstance(data, list):
+                return [str(x) for x in data if x]
+        except Exception:
+            pass
+    return None
+
+
 def format_menu_item_response(item: MenuItem) -> MenuItemResponse:
     """Format menu item response with category name"""
     return MenuItemResponse(
@@ -191,6 +209,7 @@ def format_menu_item_response(item: MenuItem) -> MenuItemResponse:
         price=item.price,
         description=item.description,
         image=item.image,
+        images=_coerce_image_list(item.images),
         status=item.status,
         main_components=item.main_components,
         spicy_elements=item.spicy_elements,

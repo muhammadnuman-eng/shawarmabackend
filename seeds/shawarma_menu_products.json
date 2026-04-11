@@ -1,0 +1,567 @@
+{
+  "schemaVersion": 1,
+  "source": "Shawarma Stop web menu — src/lib/menuItems.ts + menuAssets.ts",
+  "categories": [
+    {
+      "id": "cat_ss_appetizers",
+      "name": "Appetizers",
+      "description": "Starters, salads, and sides from the Shawarma Stop menu."
+    },
+    {
+      "id": "cat_ss_fatayers",
+      "name": "Fatayers",
+      "description": "Baked pastries and wraps."
+    },
+    {
+      "id": "cat_ss_main_course",
+      "name": "Main Course",
+      "description": "Shawarma, platters, and mains."
+    },
+    {
+      "id": "cat_ss_dessert",
+      "name": "Dessert",
+      "description": "Kunafa, fatayer desserts, and ice cream."
+    },
+    {
+      "id": "cat_ss_drink",
+      "name": "Drink",
+      "description": "Beverages."
+    },
+    {
+      "id": "cat_ss_others",
+      "name": "Others",
+      "description": "Platters and specials."
+    }
+  ],
+  "products": [
+    {
+      "frontendId": "1",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Hummus",
+      "description": "Velvety, protein-rich hummus crafted from simple, wholesome ingredients.",
+      "price": 495.0,
+      "priceLabel": "Rs 495",
+      "image": "https://www.figma.com/api/mcp/asset/9121e3b7-8913-4a2f-b6bb-69a35610ba9e",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "2",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Hummus with Shawarma Chicken",
+      "description": "Creamy hummus topped with tender, spiced shawarma chicken",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/076ef111-d16b-4b4d-b751-f1489c7f0f0a",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "3",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Fattoush Salad",
+      "description": "A fresh mix of crisp vegetables, toasted pita, and tangy lemon-sumac dressing.",
+      "price": 385.0,
+      "priceLabel": "Rs 385",
+      "image": "https://www.figma.com/api/mcp/asset/2a2a9798-5b27-4f9e-a805-5e5c85de4202",
+      "badge": null
+    },
+    {
+      "frontendId": "4",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Hummus",
+      "description": "Velvety, protein-rich hummus crafted from simple, wholesome ingredients.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/9121e3b7-8913-4a2f-b6bb-69a35610ba9e",
+      "badge": "Family"
+    },
+    {
+      "frontendId": "5",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Hummus with Shawarma Chicken",
+      "description": "Creamy hummus topped with tender, spiced shawarma chicken",
+      "price": 1155.0,
+      "priceLabel": "Rs 1155",
+      "image": "https://www.figma.com/api/mcp/asset/076ef111-d16b-4b4d-b751-f1489c7f0f0a",
+      "badge": "Family"
+    },
+    {
+      "frontendId": "6",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Fattoush Salad",
+      "description": "A fresh mix of crisp vegetables, toasted pita, and tangy lemon-sumac dressing.",
+      "price": 605.0,
+      "priceLabel": "Rs 605",
+      "image": "https://www.figma.com/api/mcp/asset/f2afc747-d16c-4484-b4fb-74adb83b4b79",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "7",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Fattoush Chicken Shawarma Fries",
+      "description": "A flavorful fusion of crispy fries, spiced chicken shawarma.",
+      "price": 605.0,
+      "priceLabel": "Rs 605",
+      "image": "https://www.figma.com/api/mcp/asset/8189cb44-cfce-43d1-b86a-6782e0325127",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "8",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Fattoush Chicken Shawarma Fries",
+      "description": "A flavorful fusion of crispy fries, spiced chicken shawarma.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/8189cb44-cfce-43d1-b86a-6782e0325127",
+      "badge": "Family"
+    },
+    {
+      "frontendId": "9",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Fries",
+      "description": "Crispy golden fries, perfectly seasoned and freshly cooked for a satisfying crunch.",
+      "price": 220.0,
+      "priceLabel": "Rs 220",
+      "image": "https://www.figma.com/api/mcp/asset/99a8c1d6-799d-450e-a11b-70dbf30ca6a9",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "10",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Masala Fries",
+      "description": "Crispy golden fries dusted with a rich, aromatic masala blend and extra crunch.",
+      "price": 242.0,
+      "priceLabel": "Rs 242",
+      "image": "https://www.figma.com/api/mcp/asset/d0eaf985-a626-4787-976e-24c345bdbbe2",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "11",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Chipotle Cheezy Fries",
+      "description": "Crunchy fries loaded with creamy cheese and bold, smoky chipotle flavor.",
+      "price": 605.0,
+      "priceLabel": "Rs 605",
+      "image": "https://www.figma.com/api/mcp/asset/efb44d0d-fdb8-4c20-a3e6-6bebc5b47a42",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "12",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Loaded Shawarma Fries",
+      "description": "Loaded fries with tender shawarma chicken, sauces, and Middle Eastern spices.",
+      "price": 715.0,
+      "priceLabel": "Rs 715",
+      "image": "https://www.figma.com/api/mcp/asset/e8152eb8-5cde-4ad8-91bc-ebd6c04289b0",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "13",
+      "categoryKey": "Appetizers",
+      "categoryId": "cat_ss_appetizers",
+      "name": "Falafel (7 pieces)",
+      "description": "Crispy-on-the-outside, soft-inside falafel made with herbs and spices (7 pieces).",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/57b083b0-38bd-4312-a2ed-c005f337522b",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "14",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Pepperoni Fatayer",
+      "description": "Fatayer with a twist, stuffed with pepperoni and cheese, baked to golden perfection.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/fada7817-50e0-4271-a9f4-517ec84bad92",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "15",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Zaatar Cheese Fatayer",
+      "description": "Zaatar and melted cheese combined in a savory pastry, baked until perfectly golden.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/bcd56128-85ec-4588-a760-fb929a9ba1a3",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "16",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Shawarma Arabi",
+      "description": "Shawarma rolled in flatbread, sliced and served with garlic sauce.",
+      "price": 1155.0,
+      "priceLabel": "Rs 1155",
+      "image": "https://www.figma.com/api/mcp/asset/79312ee2-2995-4a3f-99d1-fbd857702fe7",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "17",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Cheese Fatayer",
+      "description": "Baked pastry filled with a blend of soft cheeses, perfectly melted and creamy.",
+      "price": 715.0,
+      "priceLabel": "Rs 715",
+      "image": "https://www.figma.com/api/mcp/asset/23e34629-168a-4e61-aa9a-26db762a68b8",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "18",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Juban Fatayer",
+      "description": "Rich and flavorful cheese pastry, popular for its creaminess and smooth, melted filling.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/ea5c82c2-f184-409b-8a3a-82031025a1c7",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "19",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Zaatar Fatayer",
+      "description": "Flatbread pastry topped with a fragrant blend of zaatar spices, baked fresh for a crispy bite.",
+      "price": 605.0,
+      "priceLabel": "Rs 605",
+      "image": "https://www.figma.com/api/mcp/asset/bcd56128-85ec-4588-a760-fb929a9ba1a3",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "20",
+      "categoryKey": "Fatayers",
+      "categoryId": "cat_ss_fatayers",
+      "name": "Chicken Fatayer",
+      "description": "Pastry stuffed with spiced chicken filling, baked to golden perfection for a crispy, flavorful bite.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/7d84c387-b464-4cd5-9946-5115e7146b26",
+      "badge": "Single"
+    },
+    {
+      "frontendId": "21",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "House Special Shawarma",
+      "description": "Our signature chicken shawarma with garlic sauce and pickles in a wrap.",
+      "price": 528.0,
+      "priceLabel": "Rs 528",
+      "image": "https://www.figma.com/api/mcp/asset/b591886b-eea3-4003-92b5-4bf05ae8b91e",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "22",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "House Special Shawarma",
+      "description": "Rich and flavorful cheese pastry, popular for its creaminess and smooth, melted filling.",
+      "price": 880.0,
+      "priceLabel": "Rs 880",
+      "image": "https://www.figma.com/api/mcp/asset/b591886b-eea3-4003-92b5-4bf05ae8b91e",
+      "badge": "Large"
+    },
+    {
+      "frontendId": "23",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Farrouj Meshwi",
+      "description": "Grilled whole chicken, marinated in Middle Eastern spices, served with garlic sauce and rice.",
+      "price": 1650.0,
+      "priceLabel": "Rs 1650",
+      "image": "https://www.figma.com/api/mcp/asset/41cfe949-2907-477d-8428-e9fde16ad34c",
+      "badge": "Half"
+    },
+    {
+      "frontendId": "24",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Farrouj Meshwi",
+      "description": "Grilled whole chicken, marinated in Middle Eastern spices, served with garlic sauce and rice.",
+      "price": 2860.0,
+      "priceLabel": "Rs 2860",
+      "image": "https://www.figma.com/api/mcp/asset/41cfe949-2907-477d-8428-e9fde16ad34c",
+      "badge": "Full"
+    },
+    {
+      "frontendId": "25",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Shish Tawook Wrap",
+      "description": "Marinated grilled chicken served in a wrap with garlic sauce and fresh veggies.",
+      "price": 880.0,
+      "priceLabel": "Rs 880",
+      "image": "https://www.figma.com/api/mcp/asset/43ae4389-c3ea-4687-b21e-9c352813740b",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "26",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Kafta Kebab Wrap",
+      "description": "Grilled kafta kebabs with hummus, onions, and parsley wrapped in flatbread.",
+      "price": 825.0,
+      "priceLabel": "Rs 825",
+      "image": "https://www.figma.com/api/mcp/asset/a8d677db-c0b5-40f7-9791-f8b890d0b20b",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "27",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "OG Crispy Shawarma",
+      "description": "Chicken shawarma with garlic sauce and crispy bread. Make it a meal (Rs 300)",
+      "price": 950.0,
+      "priceLabel": "Rs 950",
+      "image": "https://www.figma.com/api/mcp/asset/c2213e35-362e-47de-b7b1-6e9fc93669f3",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "28",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Flafel Wrap",
+      "description": "Falafel patties wrapped in flatbread with tahini sauce and veggies. Make it a meal (Rs 300)",
+      "price": 385.0,
+      "priceLabel": "Rs 385",
+      "image": "https://www.figma.com/api/mcp/asset/9f090e78-6f83-4077-9bcc-17993545d67c",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "29",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Chicken Shawarma Platter",
+      "description": "Shawarma chicken served with rice, garlic sauce, and pickles — fresh and flavorful.",
+      "price": 1265.0,
+      "priceLabel": "Rs 1265",
+      "image": "https://www.figma.com/api/mcp/asset/23e34629-168a-4e61-aa9a-26db762a68b8",
+      "badge": "Regular",
+      "image2": "https://www.figma.com/api/mcp/asset/a0fc6412-545e-4151-8f1e-44575bbc920c"
+    },
+    {
+      "frontendId": "30",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Lahori Shawarma Platter",
+      "description": "Spicy Lahori-style shawarma served with pita bread and chutney.",
+      "price": 990.0,
+      "priceLabel": "Rs 990",
+      "image": "https://www.figma.com/api/mcp/asset/d82cbb44-8f87-4cae-aa72-e799a4af81df",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "31",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Shish Tawook Platter",
+      "description": "Grilled marinated chicken skewers, served with rice and garlic sauce.",
+      "price": 1650.0,
+      "priceLabel": "Rs 1650",
+      "image": "https://www.figma.com/api/mcp/asset/43ae4389-c3ea-4687-b21e-9c352813740b",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "32",
+      "categoryKey": "Main Course",
+      "categoryId": "cat_ss_main_course",
+      "name": "Kafta Kebab Platter",
+      "description": "Kafta kebab served with rice, garlic sauce, and grilled vegetables.",
+      "price": 1705.0,
+      "priceLabel": "Rs 1705",
+      "image": "https://www.figma.com/api/mcp/asset/a8d677db-c0b5-40f7-9791-f8b890d0b20b",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "33",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Classic Kunafa",
+      "description": "Crispy golden kunafa with melted cheese, sweet syrup, and crushed pistachios.",
+      "price": 1430.0,
+      "priceLabel": "Rs 1430",
+      "image": "https://www.figma.com/api/mcp/asset/edf02ebb-b7d0-459b-afb5-13fd33802a2f",
+      "badge": null
+    },
+    {
+      "frontendId": "34",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Nutella Kunafa",
+      "description": "Crispy golden kunafa with rich Nutella, sweet syrup, and crushed pistachios.",
+      "price": 1430.0,
+      "priceLabel": "Rs 1430",
+      "image": "https://www.figma.com/api/mcp/asset/edf02ebb-b7d0-459b-afb5-13fd33802a2f",
+      "badge": null
+    },
+    {
+      "frontendId": "35",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Nutella Fatayer",
+      "description": "Soft baked fatayer stuffed with rich Nutella, lightly toasted for a warm and chocolatey delight.",
+      "price": 1045.0,
+      "priceLabel": "Rs 1045",
+      "image": "https://www.figma.com/api/mcp/asset/f2502a95-01e2-4a28-b2f1-236b26eff873",
+      "badge": null
+    },
+    {
+      "frontendId": "36",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Juban Fatayer with honey",
+      "description": "Soft baked Juban fatayer filled with creamy cheese and drizzled with pure honey.",
+      "price": 880.0,
+      "priceLabel": "Rs 880",
+      "image": "https://www.figma.com/api/mcp/asset/ea5c82c2-f184-409b-8a3a-82031025a1c7",
+      "badge": null
+    },
+    {
+      "frontendId": "37",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Mango ice-cream",
+      "description": "Crispy golden kunafa with melted cheese, sweet syrup, and crushed pistachios.",
+      "price": 305.0,
+      "priceLabel": "Rs 305",
+      "image": "https://www.figma.com/api/mcp/asset/b591886b-eea3-4003-92b5-4bf05ae8b91e",
+      "badge": null
+    },
+    {
+      "frontendId": "38",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Belgian Chocolate Ice-cream",
+      "description": "Crispy golden kunafa with melted cheese, sweet syrup, and crushed pistachios.",
+      "price": 305.0,
+      "priceLabel": "Rs 305",
+      "image": "https://www.figma.com/api/mcp/asset/1dcf6bb5-b3b8-431d-9df0-3e362de38c3f",
+      "badge": null
+    },
+    {
+      "frontendId": "39",
+      "categoryKey": "Dessert",
+      "categoryId": "cat_ss_dessert",
+      "name": "Vanilla Brownie Ice-cream",
+      "description": "Crispy golden kunafa with melted cheese, sweet syrup, and crushed pistachios.",
+      "price": 305.0,
+      "priceLabel": "Rs 305",
+      "image": "https://www.figma.com/api/mcp/asset/71d97e94-8eb4-4765-b8c3-a5cabc168a01",
+      "badge": null
+    },
+    {
+      "frontendId": "40",
+      "categoryKey": "Others",
+      "categoryId": "cat_ss_others",
+      "name": "Mix Grill Platter",
+      "description": "Half Farouj Meshwi, 2 kafta kebabs, 7 pieces of shish tawook, rice, garlic sauce, pickles, and bread",
+      "price": 3080.0,
+      "priceLabel": "Rs 3080",
+      "image": "https://www.figma.com/api/mcp/asset/b6f1ab65-7c0f-4690-8f91-d19bb9c4b08f",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "41",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Regular Water Bottle",
+      "description": "Pure and refreshing regular water bottle, served chilled for your comfort.",
+      "price": 120.0,
+      "priceLabel": "Rs 120",
+      "image": "https://www.figma.com/api/mcp/asset/32426eb4-f9db-40db-909d-0eb75b3657bc",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "42",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Large Water Bottle",
+      "description": "Pure and refreshing Large water bottle, served chilled for your comfort.",
+      "price": 200.0,
+      "priceLabel": "Rs 200",
+      "image": "https://www.figma.com/api/mcp/asset/35f0c86a-f15a-4d75-8cb8-5c85320f1d84",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "43",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Canned Soft Drinks",
+      "description": "Chilled canned soft drinks, served fresh and fizzy for a refreshing boost.",
+      "price": 150.0,
+      "priceLabel": "Rs 150",
+      "image": "https://www.figma.com/api/mcp/asset/a1c9be51-8d39-4327-aff6-d9d8b56a3cdf",
+      "badge": "Half"
+    },
+    {
+      "frontendId": "44",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Fresh Lime",
+      "description": "Freshly squeezed lime drink, cool and refreshing with a zesty citrus twist.",
+      "price": 200.0,
+      "priceLabel": "Rs 200",
+      "image": "https://www.figma.com/api/mcp/asset/57eb0b30-ffa2-4e38-9e60-b0ece8dc1718",
+      "badge": "Full"
+    },
+    {
+      "frontendId": "45",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Mint Margarita",
+      "description": "Refreshing mint margarita blended with fresh mint and lemon for a cool, zesty taste.",
+      "price": 250.0,
+      "priceLabel": "Rs 250",
+      "image": "https://www.figma.com/api/mcp/asset/63eea26e-429f-4751-9127-c6f1bc5f4ea2",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "46",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Turkish Tea",
+      "description": "Authentic Turkish tea, freshly brewed and served hot with rich aroma and bold flavor.",
+      "price": 250.0,
+      "priceLabel": "Rs 250",
+      "image": "https://www.figma.com/api/mcp/asset/499cefbb-244a-47b9-aa18-316da95c93d6",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "47",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Kadak Chai",
+      "description": "Strong and flavorful Kadak Chai, freshly brewed for a bold and comforting taste.",
+      "price": 250.0,
+      "priceLabel": "Rs 250",
+      "image": "https://www.figma.com/api/mcp/asset/608d38eb-1438-4fd0-99fc-bb757e82e9a2",
+      "badge": "Regular"
+    },
+    {
+      "frontendId": "48",
+      "categoryKey": "Drink",
+      "categoryId": "cat_ss_drink",
+      "name": "Fresh Seasonal Juices",
+      "description": "Fresh seasonal juices made from ripe fruits, naturally sweet and refreshing.",
+      "price": 450.0,
+      "priceLabel": "Rs 450",
+      "image": "https://www.figma.com/api/mcp/asset/7b8c6e9b-812d-4651-9c42-107c0538635e",
+      "badge": "Regular"
+    }
+  ]
+}

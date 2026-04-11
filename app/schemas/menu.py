@@ -38,6 +38,7 @@ class MenuItemResponse(BaseModel):
     price: float
     description: Optional[str]
     image: Optional[str]
+    images: Optional[List[str]] = None  # Extra gallery URLs (e.g. second image for dual-layer cards)
     status: str
     main_components: Optional[List[Dict]]
     spicy_elements: Optional[List[str]]

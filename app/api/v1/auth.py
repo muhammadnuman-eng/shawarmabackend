@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from datetime import datetime, timedelta
+from sqlalchemy import or_, func
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pydantic import BaseModel
 import logging
@@ -18,6 +18,21 @@ from app.models.user import User, OTP
 from app.core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+
+def utc_now() -> datetime:
+    """Timezone-aware UTC for OTP expiry storage and comparisons (avoids naive/aware mismatches)."""
+    return datetime.now(timezone.utc)
+
+
+def normalize_registration_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def email_otp_uses_mock_provider() -> bool:
+    prov = getattr(email_service, "provider", None)
+    return prov is not None and prov.__class__.__name__ == "MockEmailProvider"
+
 
 # Debug: Check if this file is being loaded
 print("AUTH.PY LOADED - DEBUG")
@@ -108,6 +123,8 @@ class EmailOTPResponse(BaseModel):
     message: str
     otpSent: bool
     email: str
+    # Only set when email is handled by MockEmailProvider (local dev); omit in real email sends.
+    devOtp: Optional[str] = None
 
 class GenericOTPResponse(BaseModel):
     message: str
@@ -134,7 +151,8 @@ def create_user_response(user: User) -> dict:
 @router.post("/login", response_model=AuthResponse)
 async def email_login(request: EmailLoginRequest, db: Session = Depends(get_db)):
     """Email login endpoint"""
-    user = db.query(User).filter(User.email == request.email).first()
+    email_norm = normalize_registration_email(request.email)
+    user = db.query(User).filter(func.lower(User.email) == email_norm).first()
     
     if not user or not user.password_hash:
         raise HTTPException(
@@ -164,8 +182,9 @@ async def email_login(request: EmailLoginRequest, db: Session = Depends(get_db))
 @router.post("/register", response_model=EmailOTPResponse)
 async def email_register(request: EmailRegisterRequest, db: Session = Depends(get_db)):
     """Email registration endpoint (sends OTP now)"""
-    # Check if email already exists
-    existing_user = db.query(User).filter(User.email == request.email).first()
+    email_norm = normalize_registration_email(request.email)
+    # Check if email already exists (case-insensitive)
+    existing_user = db.query(User).filter(func.lower(User.email) == email_norm).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -174,12 +193,12 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
 
     # Generate OTP
     otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = utc_now() + timedelta(minutes=10)
 
     # Store OTP
     otp = OTP(
         id=generate_uuid(),
-        email=request.email,
+        email=email_norm,
         otp_code=otp_code,
         purpose="register",
         expires_at=expires_at
@@ -188,7 +207,7 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
     db.commit()
 
     # Send OTP via email
-    email_sent = await email_service.send_otp_email(request.email, otp_code)
+    email_sent = await email_service.send_otp_email(email_norm, otp_code)
 
     if not email_sent:
         # Check if we're using mock provider (development mode)
@@ -199,7 +218,7 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
                 print("=" * 80)
                 print("EMAIL REGISTRATION - DEVELOPMENT MODE")
                 print("=" * 80)
-                print(f"Email: {request.email}")
+                print(f"Email: {email_norm}")
                 print(f"OTP Code: {otp_code}")
                 print(f"Valid for: 10 minutes")
                 print("")
@@ -208,7 +227,7 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
             else:
                 # If email fails in production, delete the OTP from database to prevent spam
                 db.query(OTP).filter(
-                    OTP.email == request.email,
+                    OTP.email == email_norm,
                     OTP.purpose == "register"
                 ).delete()
                 db.commit()
@@ -220,7 +239,7 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
         except Exception as e:
             # If we can't determine provider type, assume production and fail
             db.query(OTP).filter(
-                OTP.email == request.email,
+                OTP.email == email_norm,
                 OTP.purpose == "register"
             ).delete()
             db.commit()
@@ -233,13 +252,8 @@ async def email_register(request: EmailRegisterRequest, db: Session = Depends(ge
     return EmailOTPResponse(
         message="OTP sent successfully",
         otpSent=True,
-        email=request.email
-    )
-
-    return EmailOTPResponse(
-        message="Verification code sent to your email",
-        otpSent=True,
-        email=request.email
+        email=email_norm,
+        devOtp=otp_code if email_otp_uses_mock_provider() else None,
     )
 
 @router.post("/phone/login", response_model=OTPResponse)
@@ -260,7 +274,7 @@ async def phone_login(request: PhoneLoginRequest, db: Session = Depends(get_db))
         OTP.phone_number == request.phoneNumber,
         OTP.purpose == "login",
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).first()
 
     if existing_active_otp:
@@ -274,7 +288,7 @@ async def phone_login(request: PhoneLoginRequest, db: Session = Depends(get_db))
 
     # Generate OTP
     otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = utc_now() + timedelta(minutes=10)
     logger.info(f"[PHONE LOGIN] Generated OTP {otp_code} for {request.phoneNumber}, expires at {expires_at}")
 
     # Store or update OTP
@@ -361,7 +375,7 @@ async def phone_register(request: PhoneRegisterRequest, db: Session = Depends(ge
         OTP.phone_number == request.phoneNumber,
         OTP.purpose == "register",
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).first()
 
     if existing_active_otp:
@@ -375,7 +389,7 @@ async def phone_register(request: PhoneRegisterRequest, db: Session = Depends(ge
 
     # Generate OTP
     otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = utc_now() + timedelta(minutes=10)
     logger.info(f"[PHONE REGISTER] Generated OTP {otp_code} for {request.phoneNumber}, expires at {expires_at}")
 
     # Store OTP in database
@@ -449,7 +463,7 @@ async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     all_active_otps = db.query(OTP).filter(
         OTP.phone_number == request.phoneNumber,
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).all()
 
     logger.info(f"[VERIFY OTP] Found {len(all_active_otps)} active OTPs for phone {request.phoneNumber}")
@@ -461,7 +475,7 @@ async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
         OTP.phone_number == request.phoneNumber,
         OTP.otp_code == request.otp,
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).order_by(OTP.created_at.desc()).first()
 
     # DEVELOPMENT FALLBACK: Accept any 4-digit OTP for testing
@@ -481,7 +495,7 @@ async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
                 phone_number=request.phoneNumber,
                 otp_code=request.otp,
                 purpose="register",
-                expires_at=datetime.utcnow() + timedelta(minutes=10),
+                expires_at=utc_now() + timedelta(minutes=10),
                 is_verified=True
             )
             db.add(dummy_otp)
@@ -533,13 +547,17 @@ async def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
 @router.post("/verify-email-otp", response_model=AuthResponse)
 async def verify_email_otp(request: VerifyEmailOTPRequest, db: Session = Depends(get_db)):
     """Verify email OTP and complete registration"""
-    # Find OTP
+    email_norm = normalize_registration_email(request.email)
+    otp_code_in = str(request.otp).strip()
+
+    # Find OTP (registration only; match expiry with timezone-aware UTC)
     otp = db.query(OTP).filter(
         OTP.email.isnot(None),
-        OTP.email == request.email,
-        OTP.otp_code == request.otp,
+        OTP.email == email_norm,
+        OTP.purpose == "register",
+        OTP.otp_code == otp_code_in,
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).order_by(OTP.created_at.desc()).first()
 
     if not otp:
@@ -549,7 +567,7 @@ async def verify_email_otp(request: VerifyEmailOTPRequest, db: Session = Depends
         )
 
     # Check if email already exists (shouldn't happen, but safety check)
-    existing_user = db.query(User).filter(User.email == request.email).first()
+    existing_user = db.query(User).filter(func.lower(User.email) == email_norm).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -563,7 +581,7 @@ async def verify_email_otp(request: VerifyEmailOTPRequest, db: Session = Depends
     user = User(
         id=generate_uuid(),
         name=request.name,
-        email=request.email,
+        email=email_norm,
         password_hash=get_password_hash(request.password),
         is_online=True,
         last_seen=datetime.utcnow()
@@ -607,7 +625,7 @@ async def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
 
     # Generate new OTP
     otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = utc_now() + timedelta(minutes=10)
 
     existing_otp.otp_code = otp_code
     existing_otp.expires_at = expires_at
@@ -632,10 +650,12 @@ async def resend_otp(request: ResendOTPRequest, db: Session = Depends(get_db)):
 @router.post("/resend-email-otp", response_model=dict)
 async def resend_email_otp(request: ResendEmailOTPRequest, db: Session = Depends(get_db)):
     """Resend email OTP"""
-    # Find existing OTP
+    email_norm = normalize_registration_email(request.email)
+    # Registration OTP only (avoid picking up forgot_password or other rows)
     existing_otp = db.query(OTP).filter(
         OTP.email.isnot(None),
-        OTP.email == request.email
+        OTP.email == email_norm,
+        OTP.purpose == "register",
     ).order_by(OTP.created_at.desc()).first()
 
     if not existing_otp:
@@ -646,7 +666,7 @@ async def resend_email_otp(request: ResendEmailOTPRequest, db: Session = Depends
 
     # Generate new OTP
     otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    expires_at = utc_now() + timedelta(minutes=10)
 
     existing_otp.otp_code = otp_code
     existing_otp.expires_at = expires_at
@@ -655,7 +675,7 @@ async def resend_email_otp(request: ResendEmailOTPRequest, db: Session = Depends
     db.commit()
 
     # Send OTP via email
-    email_sent = await email_service.send_otp_email(request.email, otp_code)
+    email_sent = await email_service.send_otp_email(email_norm, otp_code)
 
     if not email_sent:
         raise HTTPException(
@@ -663,10 +683,13 @@ async def resend_email_otp(request: ResendEmailOTPRequest, db: Session = Depends
             detail="Failed to resend verification code. Please try again."
         )
 
-    return {
+    out = {
         "message": "Verification code resent successfully",
-        "otpSent": True
+        "otpSent": True,
     }
+    if email_otp_uses_mock_provider():
+        out["devOtp"] = otp_code
+    return out
 
 @router.post("/forgot-password", response_model=GenericOTPResponse)
 async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
@@ -692,7 +715,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
             OTP.email == request.email,
             OTP.purpose == "forgot_password",
             OTP.is_verified == False,
-            OTP.expires_at > datetime.utcnow()
+            OTP.expires_at > utc_now()
         ).first()
 
         if existing_active_otp:
@@ -705,7 +728,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
 
         # Generate OTP
         otp_code = generate_otp()
-        expires_at = datetime.utcnow() + timedelta(minutes=10)
+        expires_at = utc_now() + timedelta(minutes=10)
 
         # Store OTP in database
         existing_otp = db.query(OTP).filter(
@@ -777,7 +800,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
             OTP.phone_number == request.phoneNumber,
             OTP.purpose == "forgot_password",
             OTP.is_verified == False,
-            OTP.expires_at > datetime.utcnow()
+            OTP.expires_at > utc_now()
         ).first()
 
         if existing_active_otp:
@@ -790,7 +813,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
 
         # Generate OTP
         otp_code = generate_otp()
-        expires_at = datetime.utcnow() + timedelta(minutes=10)
+        expires_at = utc_now() + timedelta(minutes=10)
 
         # Store OTP in database
         existing_otp = db.query(OTP).filter(
@@ -915,7 +938,7 @@ async def reset_password_with_otp(request: ResetPasswordWithOTPRequest, db: Sess
         OTP.otp_code == request.otp,
         OTP.purpose == "forgot_password",
         OTP.is_verified == False,
-        OTP.expires_at > datetime.utcnow()
+        OTP.expires_at > utc_now()
     ).order_by(OTP.created_at.desc()).first()
 
     if not otp:
